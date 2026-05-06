@@ -12,20 +12,38 @@ export class AuthService {
         private readonly config: ConfigService,
     ) {}
 
-    async issueToken(dto: TokenRequestDto): Promise<TokenResponseDto> {
-        const client = await this.clients.validateCredentials(dto.client_id, dto.client_secret);
-        if (!client) throw new UnauthorizedException('Credenciales inválidas');
+    async issueToken(
+        clientId: string,
+        clientSecret: string,
+        dto: TokenRequestDto,
+    ): Promise<TokenResponseDto> {
+        const client = await this.clients.validateCredentials(clientId, clientSecret);
+        if (!client) throw new UnauthorizedException('Credenciales invalidas');
 
         const expiresIn = this.config.get<number>('jwt.expiration') ?? 3600;
 
-        const payload = {
+        const scopes = dto.scope
+            ? dto.scope.split(' ').filter(Boolean)
+            : undefined;
+
+        const payload: Record<string, any> = {
             sub:        client.clientId,
             type:       'external_client',
             clientName: client.name,
         };
 
+        if (scopes) {
+            payload.scope = scopes;
+        }
+
         const access_token = this.jwt.sign(payload, { expiresIn });
 
-        return { access_token, token_type: 'Bearer', expires_in: expiresIn, client_name: client.name };
+        return {
+            access_token,
+            token_type: 'Bearer',
+            expires_in: expiresIn,
+            client_name: client.name,
+            ...(scopes ? { scope: scopes } : {}),
+        };
     }
 }
