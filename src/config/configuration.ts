@@ -14,8 +14,17 @@ export default () => ({
         secret:     process.env.JWT_SECRET     ?? 'middleware-jwt-secret-change-in-prod',
         expiration: parseInt(process.env.JWT_EXPIRATION ?? '3600', 10),
     },
+    admin: {
+        apiKey: process.env.ADMIN_API_KEY ?? '',
+    },
     gateway: {
         url:      process.env.API_GATEWAY_URL ?? 'http://localhost:3000',
         m2mToken: process.env.ABAC_M2M_TOKEN  ?? '',
+    },
+    bulkhead: {
+        http: {
+            concurrency:  parseInt(process.env.HTTP_BULKHEAD_CONCURRENCY ?? '50', 10),
+            maxQueueSize: parseInt(process.env.HTTP_BULKHEAD_MAX_QUEUE    ?? '100', 10),
+        },
     },
 });

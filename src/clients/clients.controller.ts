@@ -1,10 +1,12 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Delete, Body, Param, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
+import { AdminApiKeyGuard } from './guards/admin-api-key.guard';
 
-/** Admin endpoints — in production protect with an admin token or IP allowlist */
 @ApiTags('Clients')
+@ApiHeader({ name: 'x-admin-api-key', required: true, description: 'API key de administración' })
+@UseGuards(AdminApiKeyGuard)
 @Controller('clients')
 export class ClientsController {
     constructor(private readonly service: ClientsService) {}

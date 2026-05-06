@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException, NotFoundException, HttpException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
@@ -29,16 +29,16 @@ export class GatewayClient {
 
         // Bulkhead — concurrencia separada por tipo de operación
         this.highPriority = new PQueue({ concurrency: 10 });
-        this.lowPriority = new PQueue({ concurrency: 5 });
+        this.lowPriority  = new PQueue({ concurrency: 5 });
 
         // Circuit breaker — envuelve el método interno de llamada HTTP
         this.breaker = new CircuitBreaker(
             (url: string, params?: Record<string, string>) => this._httpGet(url, params),
             {
-                timeout: 5000,   // 5s max por request
-                errorThresholdPercentage: 50,     // abre si >50% fallan
-                resetTimeout: 30000,  // intenta HALF_OPEN a los 30s
-                volumeThreshold: 5,      // mínimo 5 calls antes de evaluar
+                timeout:                  5000,
+                errorThresholdPercentage: 50,
+                resetTimeout:             30000,
+                volumeThreshold:          5,
                 errorFilter: (err) => {
                     // 4xx no cuentan como falla de infraestructura
                     if (err instanceof AxiosError && err.response) {
@@ -49,29 +49,17 @@ export class GatewayClient {
             },
         );
 
-        this.breaker.on('open', () => this.logger.warn('Circuit breaker OPEN — api-gateway no disponible'));
+        this.breaker.on('open',     () => this.logger.warn('Circuit breaker OPEN — api-gateway no disponible'));
         this.breaker.on('halfOpen', () => this.logger.log('Circuit breaker HALF-OPEN — probando api-gateway'));
-        this.breaker.on('close', () => this.logger.log('Circuit breaker CLOSED — api-gateway disponible'));
+        this.breaker.on('close',    () => this.logger.log('Circuit breaker CLOSED — api-gateway disponible'));
         this.breaker.fallback(() => { throw new ServiceUnavailableException('api-gateway no disponible (circuit open)'); });
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    getIncidentByNumber(number: string): Promise<unknown> {
-        return this.highPriority.add(() =>
-            this.breaker.fire(`${this.baseUrl}/internal-api/incidents/by-number/${encodeURIComponent(number)}`),
-        );
-    }
-
     getRequestByNumber(number: string): Promise<unknown> {
         return this.highPriority.add(() =>
             this.breaker.fire(`${this.baseUrl}/internal-api/requests/by-number/${encodeURIComponent(number)}`),
-        );
-    }
-
-    listIncidents(params: Record<string, string>): Promise<unknown> {
-        return this.lowPriority.add(() =>
-            this.breaker.fire(`${this.baseUrl}/internal-api/incidents`, params),
         );
     }
 
@@ -90,7 +78,7 @@ export class GatewayClient {
             },
             bulkhead: {
                 high: { pending: this.highPriority.pending, size: this.highPriority.size, concurrency: 10 },
-                low: { pending: this.lowPriority.pending, size: this.lowPriority.size, concurrency: 5 },
+                low:  { pending: this.lowPriority.pending,  size: this.lowPriority.size,  concurrency: 5  },
             },
         };
     }
@@ -103,9 +91,15 @@ export class GatewayClient {
             );
             return response.data;
         } catch (err) {
-            if (err instanceof AxiosError) {
-                if (err.response?.status === 404) throw new NotFoundException('Recurso no encontrado');
-                if (err.response?.data) throw Object.assign(new Error(JSON.stringify(err.response.data)), { status: err.response.status });
+            if (err instanceof AxiosError && err.response) {
+                const status = err.response.status;
+                if (status === 404) throw new NotFoundException('Recurso no encontrado');
+                // Solo reenviamos el mensaje controlado, no la estructura completa del upstream
+                const upstream = err.response.data;
+                const message = typeof upstream?.message === 'string'
+                    ? upstream.message
+                    : `Error del api-gateway (${status})`;
+                throw new HttpException(message, status);
             }
             throw err;
         }

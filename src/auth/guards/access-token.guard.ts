@@ -30,7 +30,7 @@ export class AccessTokenGuard implements CanActivate {
             return true;
         } catch (err: any) {
             if (err instanceof UnauthorizedException) throw err;
-            throw new UnauthorizedException(`Token inválido: ${err.message}`);
+            throw new UnauthorizedException('Token inválido o expirado');
         }
     }
 }

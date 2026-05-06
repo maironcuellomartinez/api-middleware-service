@@ -9,19 +9,18 @@ import { CreateClientDto, ClientCredentialsResponseDto, ClientResponseDto } from
 @Injectable()
 export class ClientsService {
     constructor(
-        @InjectRepository(ExternalClientEntity)
-        private readonly repo: Repository<ExternalClientEntity>,
-    ) {}
+        @InjectRepository(ExternalClientEntity) private readonly repo: Repository<ExternalClientEntity>,
+    ) { }
 
     async create(dto: CreateClientDto): Promise<ClientCredentialsResponseDto> {
-        const clientId     = `mc_${crypto.randomBytes(24).toString('hex')}`;
+        const clientId = `mc_${crypto.randomBytes(24).toString('hex')}`;
         const clientSecret = crypto.randomBytes(32).toString('hex');
-        const hash         = await bcrypt.hash(clientSecret, 10);
+        const hash = await bcrypt.hash(clientSecret, 10);
 
         const entity = this.repo.create({
             clientId,
             clientSecretHash: hash,
-            name:        dto.name,
+            name: dto.name,
             description: dto.description,
         });
         await this.repo.save(entity);
@@ -44,8 +43,8 @@ export class ClientsService {
         const entity = await this.repo.findOneBy({ clientId });
         if (!entity) throw new NotFoundException(`Client ${clientId} no encontrado`);
 
-        const clientSecret       = crypto.randomBytes(32).toString('hex');
-        entity.clientSecretHash  = await bcrypt.hash(clientSecret, 10);
+        const clientSecret = crypto.randomBytes(32).toString('hex');
+        entity.clientSecretHash = await bcrypt.hash(clientSecret, 10);
         await this.repo.save(entity);
 
         return { clientId, clientSecret, name: entity.name, message: 'Secret rotado — guarda el nuevo clientSecret.' };

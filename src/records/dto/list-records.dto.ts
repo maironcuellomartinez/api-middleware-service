@@ -1,12 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsIn, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsString, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class ListRecordsDto {
-    @ApiPropertyOptional({ enum: ['incident', 'request', 'all'], default: 'all' })
-    @IsOptional() @IsString() @IsIn(['incident', 'request', 'all'])
-    type?: 'incident' | 'request' | 'all' = 'all';
-
+export class ListRequestsDto {
     @ApiPropertyOptional({ description: 'Estado(s) separados por coma', example: 'CREATED,IN_PROGRESS' })
     @IsOptional() @IsString()
     status?: string;
@@ -19,7 +15,7 @@ export class ListRecordsDto {
     @IsOptional() @IsString()
     cornerId?: string;
 
-    @ApiPropertyOptional({ example: 'uuid-company', description: 'Solo aplica para requests' })
+    @ApiPropertyOptional({ example: 'uuid-company' })
     @IsOptional() @IsString()
     companyId?: string;
 

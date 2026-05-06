@@ -1,4 +1,5 @@
 {
+  "exclude": ["node_modules", "dist"],
   "compilerOptions": {
     "module": "commonjs",
     "declaration": true,
@@ -10,8 +11,9 @@
     "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
+    "rootDir": "./src",
     "baseUrl": "./",
-    "incremental": true,
+    "incremental": false,
     "skipLibCheck": true,
     "strictNullChecks": false,
     "noImplicitAny": false
