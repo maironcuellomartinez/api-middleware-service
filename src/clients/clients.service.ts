@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import * as bcrypt from 'bcryptjs';
+import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { ExternalClientEntity } from './entities/external-client.entity';
 import { CreateClientDto, ClientCredentialsResponseDto, ClientResponseDto } from './dto/create-client.dto';
@@ -22,6 +22,8 @@ export class ClientsService {
             clientSecretHash: hash,
             name: dto.name,
             description: dto.description,
+            tokenExpiresInSeconds: dto.tokenExpiresInSeconds ?? 3600,
+            allowedScopes: dto.scopes && dto.scopes.length > 0 ? dto.scopes : null,
         });
         await this.repo.save(entity);
 
@@ -36,6 +38,16 @@ export class ClientsService {
     async findOne(clientId: string): Promise<ClientResponseDto> {
         const entity = await this.repo.findOneBy({ clientId });
         if (!entity) throw new NotFoundException(`Client ${clientId} no encontrado`);
+        return this.toDto(entity);
+    }
+
+    async updateTokenExpiry(clientId: string, tokenExpiresInSeconds: number): Promise<ClientResponseDto> {
+        const entity = await this.repo.findOneBy({ clientId });
+        if (!entity) throw new NotFoundException(`Client ${clientId} no encontrado`);
+
+        entity.tokenExpiresInSeconds = tokenExpiresInSeconds;
+        await this.repo.save(entity);
+
         return this.toDto(entity);
     }
 
@@ -57,6 +69,19 @@ export class ClientsService {
         await this.repo.save(entity);
     }
 
+    async reactivate(clientId: string): Promise<ClientResponseDto> {
+        const entity = await this.repo.findOneBy({ clientId });
+        if (!entity) throw new NotFoundException(`Client ${clientId} no encontrado`);
+        entity.isActive = true;
+        await this.repo.save(entity);
+        return this.toDto(entity);
+    }
+
+    async remove(clientId: string): Promise<void> {
+        const result = await this.repo.delete({ clientId });
+        if (result.affected === 0) throw new NotFoundException(`Client ${clientId} no encontrado`);
+    }
+
     async validateCredentials(clientId: string, clientSecret: string): Promise<ExternalClientEntity | null> {
         const entity = await this.repo.findOneBy({ clientId, isActive: true });
         if (!entity) return null;
@@ -65,6 +90,15 @@ export class ClientsService {
     }
 
     private toDto(e: ExternalClientEntity): ClientResponseDto {
-        return { clientId: e.clientId, name: e.name, description: e.description, isActive: e.isActive, createdAt: e.createdAt };
+        return {
+            clientId: e.clientId,
+            name: e.name,
+            description: e.description,
+            isActive: e.isActive,
+            tokenExpiresInSeconds: e.tokenExpiresInSeconds,
+            allowedScopes: e.allowedScopes ?? null,
+            createdAt: e.createdAt,
+            updatedAt: e.updatedAt,
+        };
     }
 }

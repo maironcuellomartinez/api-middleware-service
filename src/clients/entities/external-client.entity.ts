@@ -15,6 +15,14 @@ export class ExternalClientEntity {
     @Column({ length: 255, nullable: true })
     description: string;
 
+    /** Duracion del access token en segundos (min: 3600 = 1h, max: 604800 = 7 dias) */
+    @Column({ default: 3600 })
+    tokenExpiresInSeconds: number;
+
+    /** Scopes permitidos para este cliente. null = sin restriccion */
+    @Column({ type: 'simple-json', nullable: true })
+    allowedScopes: string[] | null;
+
     @Column({ default: true })
     isActive: boolean;
 

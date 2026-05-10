@@ -9,13 +9,18 @@ describe('OAuthBulkheadGuard', () => {
     let registry: jest.Mocked<BulkheadRegistry>;
     let mockBulkhead: jest.Mocked<Bulkhead>;
 
-    const mockRequest = () => ({}) as any;
+    const mockHandler = jest.fn().mockResolvedValue(undefined);
+    const MockController = class MockController {};
 
-    const mockExecutionContext = (request: any) =>
+    const mockExecutionContext = (overrides: Record<string, any> = {}) =>
         ({
             switchToHttp: () => ({
-                getRequest: () => request,
+                getRequest: () => overrides.request ?? {},
+                getResponse: () => overrides.response ?? {},
+                getNext: () => overrides.next ?? jest.fn(),
             }),
+            getHandler: () => overrides.handler ?? mockHandler,
+            getClass: () => overrides.controller ?? MockController,
         }) as any;
 
     beforeEach(async () => {
@@ -41,29 +46,14 @@ describe('OAuthBulkheadGuard', () => {
     });
 
     describe('canActivate', () => {
-        it('should return true and store bulkhead in request when capacity is available', async () => {
-            const request = mockRequest();
-            const context = mockExecutionContext(request);
+        it('should execute the handler via bulkhead.execute and return true', async () => {
+            const context = mockExecutionContext();
 
-            mockBulkhead.canAccept.mockReturnValue(true);
-            mockBulkhead.getMetrics.mockReturnValue({
-                activeCalls:        1,
-                queuedCalls:        0,
-                maxConcurrentCalls: 3,
-                maxQueueSize:       5,
-                name:               'oauth:token',
-                totalCalls:         10,
-                successfulCalls:    9,
-                failedCalls:        0,
-                rejectedCalls:      0,
-                timedOutCalls:      0,
-                averageDurationMs:  50,
-            });
+            mockBulkhead.execute.mockImplementation(async (fn: any) => fn());
 
             const result = await guard.canActivate(context);
 
             expect(result).toBe(true);
-            expect((request as any).__oauthBulkhead).toBe(mockBulkhead);
             expect(registry.getOrCreate).toHaveBeenCalledWith({
                 name:               'oauth:token',
                 maxConcurrentCalls: 3,
@@ -71,13 +61,27 @@ describe('OAuthBulkheadGuard', () => {
                 queueTimeoutMs:     5000,
                 rejectWhenFull:     true,
             });
+            expect(mockBulkhead.execute).toHaveBeenCalled();
         });
 
-        it('should throw 429 when bulkhead cannot accept (saturated)', async () => {
-            const request = mockRequest();
-            const context = mockExecutionContext(request);
+        it('should call the original handler with request, response and next', async () => {
+            const req = { body: {} };
+            const res = { status: jest.fn() };
+            const next = jest.fn();
+            const handler = jest.fn().mockResolvedValue(undefined);
+            const context = mockExecutionContext({ request: req, response: res, next, handler });
 
-            mockBulkhead.canAccept.mockReturnValue(false);
+            mockBulkhead.execute.mockImplementation(async (fn: any) => fn());
+
+            await guard.canActivate(context);
+
+            expect(handler).toHaveBeenCalledWith(req, res, next);
+        });
+
+        it('should throw 429 when bulkhead.execute throws BulkheadRejectedError', async () => {
+            const context = mockExecutionContext();
+
+            mockBulkhead.execute.mockRejectedValue(new BulkheadRejectedError('Bulkhead is full'));
             mockBulkhead.getMetrics.mockReturnValue({
                 activeCalls:        3,
                 queuedCalls:        5,
@@ -99,35 +103,15 @@ describe('OAuthBulkheadGuard', () => {
             } catch (e: any) {
                 expect(e.getStatus()).toBe(429);
                 expect(e.getResponse().message).toBe(
-                    'Demasiados intentos de autenticación. Intente nuevamente en unos segundos.',
+                    'Demasiados intentos de autenticacion. Intente nuevamente en unos segundos.',
                 );
             }
         });
 
-        it('should throw 429 when BulkheadRejectedError is caught', async () => {
-            const request = mockRequest();
-            const context = mockExecutionContext(request);
+        it('should throw 408 when bulkhead.execute throws BulkheadTimeoutError', async () => {
+            const context = mockExecutionContext();
 
-            mockBulkhead.canAccept.mockImplementation(() => {
-                throw new BulkheadRejectedError('Bulkhead is full');
-            });
-
-            await expect(guard.canActivate(context)).rejects.toThrow(HttpException);
-
-            try {
-                await guard.canActivate(context);
-            } catch (e: any) {
-                expect(e.getStatus()).toBe(429);
-            }
-        });
-
-        it('should throw 408 when BulkheadTimeoutError is caught', async () => {
-            const request = mockRequest();
-            const context = mockExecutionContext(request);
-
-            mockBulkhead.canAccept.mockImplementation(() => {
-                throw new BulkheadTimeoutError('Bulkhead timeout');
-            });
+            mockBulkhead.execute.mockRejectedValue(new BulkheadTimeoutError('Bulkhead timeout'));
 
             await expect(guard.canActivate(context)).rejects.toThrow(HttpException);
 
@@ -136,29 +120,25 @@ describe('OAuthBulkheadGuard', () => {
             } catch (e: any) {
                 expect(e.getStatus()).toBe(408);
                 expect(e.getResponse().message).toBe(
-                    'El servidor está procesando demasiadas solicitudes de autenticación.',
+                    'El servidor esta procesando demasiadas solicitudes de autenticacion.',
                 );
             }
         });
 
         it('should re-throw unknown errors', async () => {
-            const request = mockRequest();
-            const context = mockExecutionContext(request);
+            const context = mockExecutionContext();
 
-            mockBulkhead.canAccept.mockImplementation(() => {
-                throw new Error('Unexpected error');
-            });
+            mockBulkhead.execute.mockRejectedValue(new Error('Unexpected error'));
 
             await expect(guard.canActivate(context)).rejects.toThrow(Error);
             await expect(guard.canActivate(context)).rejects.toThrow('Unexpected error');
         });
 
         it('should log a warning when bulkhead is saturated', async () => {
-            const request = mockRequest();
-            const context = mockExecutionContext(request);
+            const context = mockExecutionContext();
             const loggerWarn = jest.spyOn((guard as any).logger, 'warn').mockImplementation();
 
-            mockBulkhead.canAccept.mockReturnValue(false);
+            mockBulkhead.execute.mockRejectedValue(new BulkheadRejectedError('Bulkhead is full'));
             mockBulkhead.getMetrics.mockReturnValue({
                 activeCalls:        3,
                 queuedCalls:        5,

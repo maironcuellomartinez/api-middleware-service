@@ -2,11 +2,11 @@ import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { RecordsService } from './records.service';
 import { ListRequestsDto } from './dto/list-records.dto';
-import { AccessTokenGuard } from '../auth/guards/access-token.guard';
+import { AdminOrAccessGuard } from '../auth/guards/admin-or-access.guard';
 
 @ApiTags('Records')
 @ApiBearerAuth('access-token')
-@UseGuards(AccessTokenGuard)
+@UseGuards(AdminOrAccessGuard)
 @Controller('v1')
 export class RecordsController {
     constructor(private readonly service: RecordsService) {}

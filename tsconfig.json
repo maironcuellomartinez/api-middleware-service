@@ -1,6 +1,13 @@
 {
-  "include": ["src", "test"],
-  "exclude": ["node_modules", "dist", "test"],
+  "include": [
+    "src",
+    "test"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test"
+  ],
   "compilerOptions": {
     "module": "commonjs",
     "declaration": true,

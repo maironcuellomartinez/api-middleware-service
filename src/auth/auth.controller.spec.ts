@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { UnauthorizedException, HttpException } from '@nestjs/common';
+import { UnauthorizedException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { TokenRequestDto, TokenResponseDto } from './dto/token-request.dto';
+import { RefreshTokenRequestDto, RefreshTokenResponseDto } from './dto/refresh-token.dto';
 import { OAuthBulkheadGuard } from './guards/oauth-bulkhead.guard';
 
 describe('AuthController', () => {
@@ -11,14 +12,24 @@ describe('AuthController', () => {
 
     const mockTokenResponse: TokenResponseDto = {
         access_token: 'jwt.token.here',
+        refresh_token: 'refresh.jwt.here',
         token_type:   'Bearer',
         expires_in:   3600,
         client_name:  'Test App',
     };
 
+    const mockRefreshResponse: RefreshTokenResponseDto = {
+        access_token:  'new.jwt.token',
+        refresh_token: 'new.refresh.jwt',
+        token_type:    'Bearer',
+        expires_in:    3600,
+        client_name:   'Test App',
+    };
+
     beforeEach(async () => {
         authService = {
-            issueToken: jest.fn().mockResolvedValue(mockTokenResponse),
+            issueToken:   jest.fn().mockResolvedValue(mockTokenResponse),
+            refreshToken: jest.fn().mockResolvedValue(mockRefreshResponse),
         } as any;
 
         const module: TestingModule = await Test.createTestingModule({
@@ -35,7 +46,7 @@ describe('AuthController', () => {
     });
 
     function mockRequest(overrides: Record<string, any> = {}): any {
-        return { __oauthBulkhead: undefined, ...overrides };
+        return { ...overrides };
     }
 
     describe('issueToken — Basic Auth', () => {
@@ -71,20 +82,6 @@ describe('AuthController', () => {
                 'supersecret',
                 expect.objectContaining({ scope: 'read write admin' }),
             );
-        });
-
-        it('should pass through bulkhead when present in request', async () => {
-            const dto: TokenRequestDto = { grant_type: 'client_credentials' };
-            const encoded = Buffer.from('mc_abc123:supersecret').toString('base64');
-            const mockBulkhead = {
-                execute: jest.fn().mockImplementation((fn: any) => fn()),
-            };
-            const req = mockRequest({ __oauthBulkhead: mockBulkhead });
-
-            const result = await controller.issueToken(dto, req, `Basic ${encoded}`);
-
-            expect(mockBulkhead.execute).toHaveBeenCalled();
-            expect(result).toEqual(mockTokenResponse);
         });
 
         it('should throw UnauthorizedException when Basic Auth header is malformed', async () => {
@@ -148,28 +145,51 @@ describe('AuthController', () => {
                 new UnauthorizedException('Formato de client_id invalido — debe comenzar con mc_'),
             );
         });
+    });
 
-        it('should catch BulkheadRejectedError and throw HttpException(429)', async () => {
-            const dto: TokenRequestDto = { grant_type: 'client_credentials' };
-            const encoded = Buffer.from('mc_abc123:supersecret').toString('base64');
-            const { BulkheadRejectedError } = await import('../recilience/bulkhead/bulkhead');
-            const mockBulkhead = {
-                execute: jest.fn().mockRejectedValue(new BulkheadRejectedError('Bulkhead is full')),
+    describe('refreshToken — POST /oauth/refresh', () => {
+        it('should delegate to authService.refreshToken and return response', async () => {
+            const dto: RefreshTokenRequestDto = {
+                refresh_token: 'valid.refresh.jwt',
             };
-            const req = mockRequest({ __oauthBulkhead: mockBulkhead });
 
-            await expect(
-                controller.issueToken(dto, req, `Basic ${encoded}`),
-            ).rejects.toThrow(
-                new HttpException(
-                    {
-                        statusCode: 429,
-                        error:      'Too Many Requests',
-                        message:    'Demasiados intentos de autenticacion. Intente nuevamente en unos segundos.',
-                    },
-                    429,
-                ),
+            const result = await controller.refreshToken(dto);
+
+            expect(authService.refreshToken).toHaveBeenCalledWith(dto);
+            expect(result).toEqual(mockRefreshResponse);
+        });
+
+        it('should propagate UnauthorizedException from service', async () => {
+            const dto: RefreshTokenRequestDto = {
+                refresh_token: 'invalid.refresh.jwt',
+            };
+            authService.refreshToken.mockRejectedValue(
+                new UnauthorizedException('Refresh token invalido o expirado'),
             );
+
+            await expect(controller.refreshToken(dto)).rejects.toThrow(
+                UnauthorizedException,
+            );
+        });
+
+        it('should accept refresh token and return new token pair', async () => {
+            const dto: RefreshTokenRequestDto = {
+                refresh_token: 'another.valid.jwt',
+            };
+            const customResponse: RefreshTokenResponseDto = {
+                access_token:  'custom.access.jwt',
+                refresh_token: 'custom.refresh.jwt',
+                token_type:    'Bearer',
+                expires_in:    7200,
+                client_name:   'My App',
+            };
+            authService.refreshToken.mockResolvedValue(customResponse);
+
+            const result = await controller.refreshToken(dto);
+
+            expect(result.access_token).toBe('custom.access.jwt');
+            expect(result.refresh_token).toBe('custom.refresh.jwt');
+            expect(result.expires_in).toBe(7200);
         });
     });
 });

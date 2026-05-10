@@ -10,9 +10,9 @@ export class BulkheadRegistry implements OnModuleInit {
     private bulkheads = new Map<string, Bulkhead>();
     private defaultConfig: Omit<BulkheadConfig, 'name'> = {
         maxConcurrentCalls: 10,
-        maxQueueSize:       100,
-        queueTimeoutMs:     30000,
-        rejectWhenFull:     true,
+        maxQueueSize: 100,
+        queueTimeoutMs: 30000,
+        rejectWhenFull: true,
     };
 
     onModuleInit() {
@@ -41,8 +41,8 @@ export class BulkheadRegistry implements OnModuleInit {
             return this.getOrCreate({
                 name: `abac:${clientId}`,
                 maxConcurrentCalls: 3,
-                maxQueueSize:       50,
-                queueTimeoutMs:     5000,
+                maxQueueSize: 50,
+                queueTimeoutMs: 5000,
             });
         }
         return this.getOrCreate({ name: 'abac:global', maxConcurrentCalls: 10, maxQueueSize: 100, queueTimeoutMs: 5000 });
@@ -64,6 +64,10 @@ export class BulkheadRegistry implements OnModuleInit {
         return metrics;
     }
 
+    getForServiceNow(): Bulkhead {
+        return this.getOrCreate({ name: 'servicenow:api', maxConcurrentCalls: 8, maxQueueSize: 40, rejectWhenFull: true });
+    }
+
     resetAllMetrics(): void {
         for (const bulkhead of this.bulkheads.values()) {
             bulkhead.resetMetrics();
@@ -82,7 +86,7 @@ export class BulkheadRegistry implements OnModuleInit {
     }
 
     private createDefaultBulkheads(): void {
-        this.getOrCreate({ name: 'gateway:high', maxConcurrentCalls: 10, maxQueueSize: 50,  queueTimeoutMs: 5000 });
-        this.getOrCreate({ name: 'gateway:low',  maxConcurrentCalls: 5,  maxQueueSize: 100, queueTimeoutMs: 10000 });
+        this.getOrCreate({ name: 'gateway:high', maxConcurrentCalls: 10, maxQueueSize: 50, queueTimeoutMs: 5000 });
+        this.getOrCreate({ name: 'gateway:low', maxConcurrentCalls: 5, maxQueueSize: 100, queueTimeoutMs: 10000 });
     }
 }

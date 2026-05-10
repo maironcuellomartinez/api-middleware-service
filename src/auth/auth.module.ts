@@ -1,17 +1,23 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { JwtModule, JwtService } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AccessTokenGuard } from './guards/access-token.guard';
 import { OAuthBulkheadGuard } from './guards/oauth-bulkhead.guard';
+import { AdminOrAccessGuard, JWT_AUTH_SERVICE } from './guards/admin-or-access.guard';
+import { RefreshTokenEntity } from './entities/refresh-token.entity';
 import { ClientsModule } from '../clients/clients.module';
 import { BulkheadModule } from '../recilience/bulkhead/bulkhead.module';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
     imports: [
         ClientsModule,
         BulkheadModule,
+        AdminModule,
+        TypeOrmModule.forFeature([RefreshTokenEntity]),
         JwtModule.registerAsync({
             imports: [ConfigModule],
             inject:  [ConfigService],
@@ -22,7 +28,17 @@ import { BulkheadModule } from '../recilience/bulkhead/bulkhead.module';
         }),
     ],
     controllers: [AuthController],
-    providers:   [AuthService, AccessTokenGuard, OAuthBulkheadGuard],
-    exports:     [JwtModule, AccessTokenGuard],
+    providers:   [
+        AuthService,
+        AccessTokenGuard,
+        OAuthBulkheadGuard,
+        AdminOrAccessGuard,
+        {
+            provide: JWT_AUTH_SERVICE,
+            useFactory: (jwtService: JwtService) => jwtService,
+            inject:     [JwtService],
+        },
+    ],
+    exports:     [JwtModule, AccessTokenGuard, AdminOrAccessGuard, JWT_AUTH_SERVICE],
 })
 export class AuthModule {}

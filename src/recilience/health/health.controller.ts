@@ -1,31 +1,23 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { GatewayClient } from '../../gateway/gateway.client';
-import { HttpBulkheadMiddleware } from '../bulkhead/http-bulkhead.middleware';
+import { HealthCheck } from '@nestjs/terminus';
+import { HealthService } from './health.service';
 
-/**
- * Endpoints de salud y resiliencia — sin autenticación.
- * Diseñados para k8s, Prometheus u otros sistemas de monitoreo.
- */
 @ApiTags('Health')
 @Controller('health')
 export class HealthController {
-    constructor(
-        private readonly gateway: GatewayClient,
-        private readonly bulkhead: HttpBulkheadMiddleware,
-    ) { }
+    constructor(private readonly healthService: HealthService) {}
 
-    /**
-     * Devuelve el estado del bulkhead HTTP entrante, el circuit breaker
-     * y las colas del bulkhead saliente hacia el api-gateway.
-     * No requiere Bearer token.
-     */
     @Get('status')
-    @ApiOperation({ summary: 'Estado de resiliencia completo (sin auth)' })
-    getStatus() {
-        return {
-            httpBulkhead: this.bulkhead.getStats(),
-            ...this.gateway.getStatus(),
-        };
+    @HealthCheck()
+    @ApiOperation({ summary: 'Estado del servicio con metricas de resiliencia (sin auth)' })
+    async getStatus() {
+        return this.healthService.getStatus();
+    }
+
+    @Get('ping')
+    @ApiOperation({ summary: 'Ping liviano — solo verifica que el proceso esta vivo (sin auth)' })
+    ping() {
+        return this.healthService.getPing();
     }
 }

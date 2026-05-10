@@ -29,16 +29,16 @@ export class GatewayClient {
 
         // Bulkhead — concurrencia separada por tipo de operación
         this.highPriority = new PQueue({ concurrency: 10 });
-        this.lowPriority  = new PQueue({ concurrency: 5 });
+        this.lowPriority = new PQueue({ concurrency: 5 });
 
         // Circuit breaker — envuelve el método interno de llamada HTTP
         this.breaker = new CircuitBreaker(
             (url: string, params?: Record<string, string>) => this._httpGet(url, params),
             {
-                timeout:                  5000,
+                timeout: 5000,
                 errorThresholdPercentage: 50,
-                resetTimeout:             30000,
-                volumeThreshold:          5,
+                resetTimeout: 30000,
+                volumeThreshold: 5,
                 errorFilter: (err) => {
                     // 4xx no cuentan como falla de infraestructura
                     if (err instanceof AxiosError && err.response) {
@@ -49,9 +49,9 @@ export class GatewayClient {
             },
         );
 
-        this.breaker.on('open',     () => this.logger.warn('Circuit breaker OPEN — api-gateway no disponible'));
+        this.breaker.on('open', () => this.logger.warn('Circuit breaker OPEN — api-gateway no disponible'));
         this.breaker.on('halfOpen', () => this.logger.log('Circuit breaker HALF-OPEN — probando api-gateway'));
-        this.breaker.on('close',    () => this.logger.log('Circuit breaker CLOSED — api-gateway disponible'));
+        this.breaker.on('close', () => this.logger.log('Circuit breaker CLOSED — api-gateway disponible'));
         this.breaker.fallback(() => { throw new ServiceUnavailableException('api-gateway no disponible (circuit open)'); });
     }
 
@@ -78,7 +78,7 @@ export class GatewayClient {
             },
             bulkhead: {
                 high: { pending: this.highPriority.pending, size: this.highPriority.size, concurrency: 10 },
-                low:  { pending: this.lowPriority.pending,  size: this.lowPriority.size,  concurrency: 5  },
+                low: { pending: this.lowPriority.pending, size: this.lowPriority.size, concurrency: 5 },
             },
         };
     }

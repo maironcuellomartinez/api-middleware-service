@@ -1,0 +1,21 @@
+vault:
+  path: C:\Users\mairon.cuello\mairon\Obsidian Vault
+  auto_sync: true
+  auto_use: true
+  search_paths:
+    - 04-Recursos
+extraction:
+  enabled: true
+  trigger: on_feature_complete
+  patterns: true
+  snippets: true
+  configs: true
+  ask_before_extract: false
+usage:
+  enabled: true
+  priority: vault_first
+  search_before_generate: true
+notification:
+  enabled: true
+  style: inline
+  emojis: true
