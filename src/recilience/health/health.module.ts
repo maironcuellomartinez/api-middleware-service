@@ -7,8 +7,8 @@ import { GatewayModule } from '../../gateway/gateway.module';
 import { BulkheadModule } from '../bulkhead/bulkhead.module';
 
 @Module({
-    imports:     [TerminusModule, HttpModule, GatewayModule, BulkheadModule],
+    imports: [TerminusModule, HttpModule, GatewayModule, BulkheadModule],
     controllers: [HealthController],
-    providers:   [HealthService],
+    providers: [HealthService],
 })
 export class HealthModule { }

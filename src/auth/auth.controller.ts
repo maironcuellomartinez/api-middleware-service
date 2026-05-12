@@ -13,7 +13,7 @@ import { OAuthBulkheadGuard } from './guards/oauth-bulkhead.guard';
 @ApiTags('Auth')
 @Controller('oauth')
 export class AuthController {
-    constructor(private readonly service: AuthService) {}
+    constructor(private readonly service: AuthService) { }
 
     @Post('token')
     @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -26,10 +26,10 @@ export class AuthController {
     @ApiResponse({ status: 429, description: 'Demasiados intentos — bulkhead saturado' })
     async issueToken(
         @Body() dto: TokenRequestDto,
-        @Req() req: Request,
         @Headers('authorization') authHeader?: string,
     ): Promise<TokenResponseDto> {
         const basic = this.extractBasicCredentials(authHeader);
+
         if (!basic) {
             throw new UnauthorizedException('Credenciales requeridas via Basic Auth');
         }
@@ -54,6 +54,12 @@ export class AuthController {
         return this.service.refreshToken(dto);
     }
 
+    /**
+     * Obtiene las credenciales basicas del header de autorizacion
+     * @param authHeader Header de autorizacion
+     * @returns Credenciales basicas
+     * @description Metodo auxiliar que permite obtener las credenciales basicas del header de autorizacion.
+     */
     private extractBasicCredentials(authHeader?: string): { client_id: string; client_secret: string } | null {
         if (!authHeader) return null;
 

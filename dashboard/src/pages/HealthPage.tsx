@@ -12,12 +12,12 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card'
 import { Separator } from '../components/ui/separator';
 import { Skeleton } from '../components/ui/skeleton';
 
-function isGatewayStatus(v: GatewayStatus | { error: string }): v is GatewayStatus {
-  return 'circuitBreaker' in v;
+function isGatewayStatus(v: GatewayStatus | { error: string } | undefined): v is GatewayStatus {
+  return !!v && 'circuitBreaker' in v;
 }
 
-function isHttpBulkheadStats(v: HttpBulkheadStats | { error: string }): v is HttpBulkheadStats {
-  return 'active' in v;
+function isHttpBulkheadStats(v: HttpBulkheadStats | { error: string } | undefined): v is HttpBulkheadStats {
+  return !!v && 'active' in v;
 }
 
 export default function HealthPage() {
@@ -152,7 +152,11 @@ export default function HealthPage() {
                   />
                 </>
               ) : (
-                <StatusRow label="Gateway" value={status.gateway.error} variant="destructive" />
+                <StatusRow
+                  label="Gateway"
+                  value={(status.gateway as any)?.error ?? 'No disponible'}
+                  variant="destructive"
+                />
               )}
               <Separator />
               {isHttpBulkheadStats(status.bulkhead) ? (
@@ -162,7 +166,11 @@ export default function HealthPage() {
                   variant="secondary"
                 />
               ) : (
-                <StatusRow label="HTTP Bulkhead" value={status.bulkhead.error} variant="destructive" />
+                <StatusRow
+                  label="HTTP Bulkhead"
+                  value={(status.bulkhead as any)?.error ?? 'No disponible'}
+                  variant="destructive"
+                />
               )}
             </div>
           ) : (

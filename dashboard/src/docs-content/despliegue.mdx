@@ -6,9 +6,11 @@
 - MySQL 8+
 - npm
 
+---
+
 ## Variables de entorno
 
-Crear archivos `.env.<entorno>` en la raiz del proyecto:
+Crear archivos `.env.<entorno>` en la raiz del proyecto.
 
 ### development (`.env.development`)
 
@@ -39,6 +41,13 @@ CORS_ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
 
 ### production (`.env.production`)
 
+<Alert>
+  <AlertTitle>Secretos obligatorios en staging y production</AlertTitle>
+  <AlertDescription>
+    El servicio lanza error al arrancar si JWT_SECRET, ADMIN_SESSION_SECRET o ABAC_M2M_TOKEN estan ausentes o tienen el valor dev-only--. La funcion requiredSecret() lo garantiza — es por diseno, no configurable.
+  </AlertDescription>
+</Alert>
+
 ```env
 NODE_ENV=production
 PORT=3007
@@ -63,13 +72,13 @@ HTTP_BULKHEAD_MAX_QUEUE=100
 CORS_ALLOWED_ORIGINS=https://dashboard.midominio.com
 ```
 
-## Instalacion
+---
+
+## Instalacion y ejecucion
 
 ```bash
 npm install
 ```
-
-## Ejecucion
 
 ### Desarrollo
 
@@ -77,7 +86,7 @@ npm install
 npm run start:dev
 ```
 
-Arranca con `--watch`, recarga automaticamente ante cambios. Swagger disponible en `/docs`.
+Arranca con `--watch`, recarga automaticamente ante cambios. Swagger disponible en `/docs`. TypeORM sincroniza el esquema automaticamente.
 
 ### Staging
 
@@ -85,7 +94,7 @@ Arranca con `--watch`, recarga automaticamente ante cambios. Swagger disponible 
 npm run start:staging
 ```
 
-Compila TypeScript y arranca el servicio. Swagger disponible en `/docs`. Validacion estricta de secretos.
+Compila TypeScript y arranca el servicio. Swagger disponible en `/docs`. Validacion estricta de secretos activa.
 
 ### Produccion
 
@@ -93,7 +102,9 @@ Compila TypeScript y arranca el servicio. Swagger disponible en `/docs`. Validac
 npm run start:prod
 ```
 
-Compila TypeScript y arranca el servicio. Swagger **no** disponible. Validacion estricta de secretos.
+Compila TypeScript y arranca el servicio. Swagger **no** disponible. Validacion estricta de secretos activa.
+
+---
 
 ## Base de datos
 
@@ -105,9 +116,9 @@ CREATE DATABASE IF NOT EXISTS middleware_db;
 
 ### Migraciones
 
-En development, TypeORM sincroniza automaticamente las entidades con la base de datos (`synchronize: true`).
+En development, TypeORM sincroniza automaticamente las entidades (`synchronize: true`).
 
-En staging/production, `synchronize` esta deshabilitado. Para aplicar cambios:
+En staging y production, `synchronize` esta deshabilitado. Para aplicar cambios de esquema:
 
 ```bash
 # Generar migracion
@@ -117,7 +128,28 @@ npx typeorm migration:generate -d src/migrations/MigrationName
 npx typeorm migration:run
 ```
 
+---
+
 ## Verificacion post-despliegue
+
+<MermaidDiagram chart={`
+flowchart TD
+  S1["1. Health check\nGET /health/status\n→ {status: ok}"]
+  S2["2. Setup admin\nPOST /admin/setup\n(solo primer despliegue)"]
+  S3["3. Login admin\nPOST /admin/login\n→ cookie admin_session"]
+  S4["4. Crear cliente de prueba\nPOST /clients\n→ clientId + clientSecret"]
+  S5["5. Obtener token\nPOST /oauth/token\nAuthorization: Basic base64(id:secret)"]
+  S6["6. Consultar datos\nGET /v1/requests\nAuthorization: Bearer access_token"]
+
+  S1 --> S2 --> S3 --> S4 --> S5 --> S6
+
+  style S1 fill:#eef2ff,stroke:#6366f1
+  style S2 fill:#eef2ff,stroke:#6366f1
+  style S3 fill:#eef2ff,stroke:#6366f1
+  style S4 fill:#eef2ff,stroke:#6366f1
+  style S5 fill:#eef2ff,stroke:#6366f1
+  style S6 fill:#d1fae5,stroke:#22c55e
+`} />
 
 ```bash
 # 1. Health check
@@ -150,6 +182,8 @@ curl -X POST http://localhost:3007/oauth/token \
 curl http://localhost:3007/v1/requests \
   -H "Authorization: Bearer <access_token>"
 ```
+
+---
 
 ## Docker (opcional)
 
@@ -196,6 +230,8 @@ services:
       retries: 10
 ```
 
+---
+
 ## Monitoreo
 
 ### Health endpoint
@@ -211,13 +247,13 @@ services:
 
 ### Metricas de resiliencia
 
-Disponibles en el mismo health endpoint (a traves de `GatewayClient.getStatus()` y `HttpBulkheadMiddleware.getStats()`):
+Disponibles en el mismo health endpoint via `GatewayClient.getStatus()` y `HttpBulkheadMiddleware.getStats()`:
 
 ```json
 {
   "circuitBreaker": {
     "state": "CLOSED",
-    "stats": { "successes": 100, "failures": 2, ... }
+    "stats": { "successes": 100, "failures": 2 }
   },
   "bulkhead": {
     "high": { "pending": 0, "size": 0, "concurrency": 10 },
@@ -228,8 +264,8 @@ Disponibles en el mismo health endpoint (a traves de `GatewayClient.getStatus()`
 
 ### Logging
 
-El servicio usa `Logger` de NestJS. Niveles:
+El servicio usa `Logger` de NestJS con tres niveles:
 
-- **Log**: eventos normales (servicio iniciado, circuit breaker cerrado)
-- **Warn**: condiciones anormales (bulkhead saturado, circuit breaker abierto)
-- **Error**: fallos de operacion (api-gateway no disponible)
+- **Log** — eventos normales: servicio iniciado, circuit breaker cerrado
+- **Warn** — condiciones anormales: bulkhead saturado, circuit breaker abierto
+- **Error** — fallos de operacion: api-gateway no disponible, error de base de datos

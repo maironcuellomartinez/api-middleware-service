@@ -45,10 +45,6 @@ describe('AuthController', () => {
         controller = module.get<AuthController>(AuthController);
     });
 
-    function mockRequest(overrides: Record<string, any> = {}): any {
-        return { ...overrides };
-    }
-
     describe('issueToken — Basic Auth', () => {
         it('should extract credentials from Basic Auth header and delegate to service', async () => {
             const dto: TokenRequestDto = { grant_type: 'client_credentials' };
@@ -56,7 +52,6 @@ describe('AuthController', () => {
 
             const result = await controller.issueToken(
                 dto,
-                mockRequest(),
                 `Basic ${encoded}`,
             );
 
@@ -75,7 +70,7 @@ describe('AuthController', () => {
             };
             const encoded = Buffer.from('mc_abc123:supersecret').toString('base64');
 
-            await controller.issueToken(dto, mockRequest(), `Basic ${encoded}`);
+            await controller.issueToken(dto, `Basic ${encoded}`);
 
             expect(authService.issueToken).toHaveBeenCalledWith(
                 'mc_abc123',
@@ -88,7 +83,7 @@ describe('AuthController', () => {
             const dto: TokenRequestDto = { grant_type: 'client_credentials' };
 
             await expect(
-                controller.issueToken(dto, mockRequest(), 'Basic not-base64!!!'),
+                controller.issueToken(dto, 'Basic not-base64!!!'),
             ).rejects.toThrow(UnauthorizedException);
         });
 
@@ -97,7 +92,7 @@ describe('AuthController', () => {
             const encoded = Buffer.from('invalid-no-colon').toString('base64');
 
             await expect(
-                controller.issueToken(dto, mockRequest(), `Basic ${encoded}`),
+                controller.issueToken(dto, `Basic ${encoded}`),
             ).rejects.toThrow(UnauthorizedException);
         });
 
@@ -105,7 +100,7 @@ describe('AuthController', () => {
             const dto: TokenRequestDto = { grant_type: 'client_credentials' };
 
             await expect(
-                controller.issueToken(dto, mockRequest()),
+                controller.issueToken(dto),
             ).rejects.toThrow(UnauthorizedException);
         });
 
@@ -113,7 +108,7 @@ describe('AuthController', () => {
             const dto: TokenRequestDto = { grant_type: 'client_credentials' };
 
             await expect(
-                controller.issueToken(dto, mockRequest(), 'Bearer some-token'),
+                controller.issueToken(dto, 'Bearer some-token'),
             ).rejects.toThrow(UnauthorizedException);
         });
 
@@ -122,7 +117,7 @@ describe('AuthController', () => {
             const encoded = Buffer.from('mc_abc123:').toString('base64');
 
             await expect(
-                controller.issueToken(dto, mockRequest(), `Basic ${encoded}`),
+                controller.issueToken(dto, `Basic ${encoded}`),
             ).rejects.toThrow(UnauthorizedException);
         });
 
@@ -131,7 +126,7 @@ describe('AuthController', () => {
             const encoded = Buffer.from(':supersecret').toString('base64');
 
             await expect(
-                controller.issueToken(dto, mockRequest(), `Basic ${encoded}`),
+                controller.issueToken(dto, `Basic ${encoded}`),
             ).rejects.toThrow(UnauthorizedException);
         });
 
@@ -140,7 +135,7 @@ describe('AuthController', () => {
             const encoded = Buffer.from('invalid_client:supersecret').toString('base64');
 
             await expect(
-                controller.issueToken(dto, mockRequest(), `Basic ${encoded}`),
+                controller.issueToken(dto, `Basic ${encoded}`),
             ).rejects.toThrow(
                 new UnauthorizedException('Formato de client_id invalido — debe comenzar con mc_'),
             );

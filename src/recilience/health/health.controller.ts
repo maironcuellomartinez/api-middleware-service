@@ -1,6 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { HealthCheck } from '@nestjs/terminus';
 import { HealthService } from './health.service';
 
 @ApiTags('Health')
@@ -9,7 +8,6 @@ export class HealthController {
     constructor(private readonly healthService: HealthService) {}
 
     @Get('status')
-    @HealthCheck()
     @ApiOperation({ summary: 'Estado del servicio con metricas de resiliencia (sin auth)' })
     async getStatus() {
         return this.healthService.getStatus();

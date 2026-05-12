@@ -4,6 +4,7 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { TokenCleanupJob } from './token-cleanup.job';
 import { AccessTokenGuard } from './guards/access-token.guard';
 import { OAuthBulkheadGuard } from './guards/oauth-bulkhead.guard';
 import { AdminOrAccessGuard, JWT_AUTH_SERVICE } from './guards/admin-or-access.guard';
@@ -30,6 +31,7 @@ import { AdminModule } from '../admin/admin.module';
     controllers: [AuthController],
     providers:   [
         AuthService,
+        TokenCleanupJob,
         AccessTokenGuard,
         OAuthBulkheadGuard,
         AdminOrAccessGuard,

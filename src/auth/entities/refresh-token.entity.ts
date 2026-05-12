@@ -15,9 +15,14 @@ export class RefreshTokenEntity {
     @Column({ length: 64 })
     clientId: string;
 
-    /** bcrypt hash del refresh token JWT */
+    /** bcrypt hash del jti — verificacion de autenticidad */
     @Column({ length: 128 })
     tokenHash: string;
+
+    /** SHA-256 del jti — lookup exacto sin ambiguedad por orden */
+    @Index()
+    @Column({ length: 64, nullable: true })
+    jtiHash: string | null;
 
     @Column()
     expiresAt: Date;

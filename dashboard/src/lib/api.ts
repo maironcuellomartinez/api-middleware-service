@@ -159,8 +159,8 @@ export async function fetchHealthStatus(): Promise<HealthStatusResponse> {
 }
 
 export async function fetchClients(): Promise<Client[]> {
-  const { data } = await api.get('/clients');
-  return data;
+  const { data } = await api.get('/clients', { params: { limit: 100 } });
+  return Array.isArray(data) ? data : (data.data ?? []);
 }
 
 export async function fetchClient(clientId: string): Promise<Client> {

@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateTokenExpiryDto } from './dto/update-token-expiry.dto';
+import { ListClientsDto } from './dto/list-clients.dto';
 import { AdminSessionGuard } from '../admin/guards/admin-session.guard';
 
 @ApiTags('Clients')
@@ -21,9 +22,9 @@ export class ClientsController {
     }
 
     @Get()
-    @ApiOperation({ summary: 'Listar aplicaciones registradas' })
-    findAll() {
-        return this.service.findAll();
+    @ApiOperation({ summary: 'Listar aplicaciones registradas (paginado)' })
+    findAll(@Query() query: ListClientsDto) {
+        return this.service.findAll(query);
     }
 
     @Get(':clientId')

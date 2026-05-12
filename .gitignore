@@ -6,4 +6,3 @@
 .env.staging
 .env.test
 /coverage
-

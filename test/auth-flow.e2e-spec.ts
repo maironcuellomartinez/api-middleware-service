@@ -7,16 +7,10 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { ExternalClientEntity } from '../src/clients/entities/external-client.entity';
 
-/**
- * Tests e2e del flujo OAuth2:
- *   POST /oauth/token  →  JWT  →  GET /v1/requests/:number
- *
- * Requiere base de datos MySQL disponible.
- * Si no hay DB, estos tests se saltan automáticamente.
- */
-
-// Usamos un timeout más largo para e2e
 jest.setTimeout(30000);
+
+const basicAuth = (id: string, secret: string) =>
+    'Basic ' + Buffer.from(`${id}:${secret}`).toString('base64');
 
 describe('Auth Flow (e2e)', () => {
     let app: INestApplication;
@@ -25,7 +19,6 @@ describe('Auth Flow (e2e)', () => {
     let configService: ConfigService;
 
     beforeAll(async () => {
-        // Verificar si hay DB disponible
         const dbHost = process.env.DB_HOST ?? 'localhost';
         const canConnect = await tryConnect(dbHost);
         if (!canConnect) {
@@ -44,15 +37,22 @@ describe('Auth Flow (e2e)', () => {
                 findOne:             jest.fn(),
                 rotateSecret:        jest.fn(),
                 deactivate:          jest.fn(),
+                updateTokenExpiry:   jest.fn(),
+                reactivate:          jest.fn(),
+                remove:              jest.fn(),
             })
             .compile();
 
         app = moduleFixture.createNestApplication();
-        app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+        app.useGlobalPipes(new ValidationPipe({
+            whitelist:            true,
+            forbidNonWhitelisted: true,
+            transform:            true,
+        }));
 
         clientsService = app.get(ClientsService) as any;
-        jwtService = app.get(JwtService);
-        configService = app.get(ConfigService);
+        jwtService     = app.get(JwtService);
+        configService  = app.get(ConfigService);
 
         await app.init();
     });
@@ -61,57 +61,68 @@ describe('Auth Flow (e2e)', () => {
         if (app) await app.close();
     });
 
-    describe('POST /oauth/token', () => {
-        const validClient: ExternalClientEntity = {
-            clientId:          'mc_test_e2e',
-            clientSecretHash:  '$2a$10$testhash',
-            name:              'E2E Test App',
-            description:       'Created for e2e testing',
-            isActive:          true,
-            createdAt:         new Date(),
-            updatedAt:         new Date(),
-        };
+    const validClient: ExternalClientEntity = {
+        clientId:              'mc_test_e2e',
+        clientSecretHash:      '$2a$10$testhash',
+        name:                  'E2E Test App',
+        description:           'Created for e2e testing',
+        tokenExpiresInSeconds: 3600,
+        allowedScopes:         null,
+        isActive:              true,
+        createdAt:             new Date(),
+        updatedAt:             new Date(),
+    };
 
-        it('should return 200 and a JWT token for valid credentials', async () => {
-            if (!app) return; // skip if no DB
+    describe('POST /oauth/token', () => {
+        it('should return 200 and JWT for valid Basic Auth credentials', async () => {
+            if (!app) return;
 
             clientsService.validateCredentials.mockResolvedValue(validClient);
 
-            const response = await request(app.getHttpServer())
+            const res = await request(app.getHttpServer())
                 .post('/oauth/token')
-                .send({
-                    grant_type:   'client_credentials',
-                    client_id:    'mc_test_e2e',
-                    client_secret: 'test-secret',
-                })
+                .set('Authorization', basicAuth('mc_test_e2e', 'correct-secret'))
+                .send({ grant_type: 'client_credentials' })
                 .expect(200);
 
-            expect(response.body).toHaveProperty('access_token');
-            expect(response.body).toHaveProperty('token_type', 'Bearer');
-            expect(response.body).toHaveProperty('expires_in');
-            expect(response.body).toHaveProperty('client_name', 'E2E Test App');
+            expect(res.body).toHaveProperty('access_token');
+            expect(res.body).toHaveProperty('refresh_token');
+            expect(res.body).toHaveProperty('token_type', 'Bearer');
+            expect(res.body).toHaveProperty('expires_in', 3600);
+            expect(res.body).toHaveProperty('client_name', 'E2E Test App');
 
-            // Verify the token is a valid JWT
-            const decoded = jwtService.verify(response.body.access_token, {
-                secret: configService.get('jwt.secret'),
-            });
+            const decoded = jwtService.verify(res.body.access_token);
             expect(decoded.sub).toBe('mc_test_e2e');
             expect(decoded.type).toBe('external_client');
-            expect(decoded.clientName).toBe('E2E Test App');
         });
 
         it('should return 401 for invalid credentials', async () => {
             if (!app) return;
-
             clientsService.validateCredentials.mockResolvedValue(null);
 
             await request(app.getHttpServer())
                 .post('/oauth/token')
-                .send({
-                    grant_type:   'client_credentials',
-                    client_id:    'mc_invalid',
-                    client_secret: 'wrong-secret',
-                })
+                .set('Authorization', basicAuth('mc_invalid', 'wrong'))
+                .send({ grant_type: 'client_credentials' })
+                .expect(401);
+        });
+
+        it('should return 401 when Authorization header is missing', async () => {
+            if (!app) return;
+
+            await request(app.getHttpServer())
+                .post('/oauth/token')
+                .send({ grant_type: 'client_credentials' })
+                .expect(401);
+        });
+
+        it('should return 401 when client_id does not start with mc_', async () => {
+            if (!app) return;
+
+            await request(app.getHttpServer())
+                .post('/oauth/token')
+                .set('Authorization', basicAuth('invalid_id', 'secret'))
+                .send({ grant_type: 'client_credentials' })
                 .expect(401);
         });
 
@@ -120,10 +131,8 @@ describe('Auth Flow (e2e)', () => {
 
             await request(app.getHttpServer())
                 .post('/oauth/token')
-                .send({
-                    client_id:     'mc_test',
-                    client_secret: 'secret',
-                })
+                .set('Authorization', basicAuth('mc_test_e2e', 'secret'))
+                .send({})
                 .expect(400);
         });
 
@@ -132,143 +141,92 @@ describe('Auth Flow (e2e)', () => {
 
             await request(app.getHttpServer())
                 .post('/oauth/token')
-                .send({
-                    grant_type:   'authorization_code',
-                    client_id:    'mc_test',
-                    client_secret: 'secret',
-                })
-                .expect(400);
-        });
-
-        it('should return 400 for missing client_id', async () => {
-            if (!app) return;
-
-            await request(app.getHttpServer())
-                .post('/oauth/token')
-                .send({
-                    grant_type:   'client_credentials',
-                    client_secret: 'secret',
-                })
-                .expect(400);
-        });
-
-        it('should return 400 for missing client_secret', async () => {
-            if (!app) return;
-
-            await request(app.getHttpServer())
-                .post('/oauth/token')
-                .send({
-                    grant_type: 'client_credentials',
-                    client_id:  'mc_test',
-                })
+                .set('Authorization', basicAuth('mc_test_e2e', 'secret'))
+                .send({ grant_type: 'authorization_code' })
                 .expect(400);
         });
     });
 
-    describe('GET /v1/requests/:number (authenticated)', () => {
+    describe('GET /v1/requests/:number (Bearer auth)', () => {
         let validToken: string;
 
-        beforeAll(async () => {
+        beforeAll(() => {
             if (!app) return;
-
-            // Generate a valid token for testing
-            const payload = {
+            validToken = jwtService.sign({
                 sub:        'mc_test_e2e',
                 type:       'external_client',
                 clientName: 'E2E Test App',
-            };
-            validToken = jwtService.sign(payload, {
-                secret:    configService.get('jwt.secret'),
-                expiresIn: 3600,
-            });
+            }, { expiresIn: 3600 });
         });
 
-        it('should return 200 for a valid token (delegates to gateway)', async () => {
+        it('should pass auth guard and reach gateway (200 or 503)', async () => {
             if (!app) return;
 
-            // The gateway client will try to call the real gateway,
-            // which is not available in tests. We expect a 503 or similar.
-            // This test verifies the auth guard passes.
-            const response = await request(app.getHttpServer())
+            const res = await request(app.getHttpServer())
                 .get('/v1/requests/REQ0001234')
                 .set('Authorization', `Bearer ${validToken}`);
 
-            // The request passes the guard but fails at gateway level
-            expect([200, 503, 502]).toContain(response.status);
+            expect([200, 503, 502]).toContain(res.status);
         });
 
-        it('should return 401 when no token is provided', async () => {
+        it('should return 401 without token', async () => {
             if (!app) return;
-
             await request(app.getHttpServer())
                 .get('/v1/requests/REQ0001234')
                 .expect(401);
         });
 
-        it('should return 401 when token is expired', async () => {
+        it('should return 401 for expired token', async () => {
             if (!app) return;
 
-            const expiredPayload = {
-                sub:        'mc_test',
-                type:       'external_client',
-                clientName: 'Test',
-            };
-            const expiredToken = jwtService.sign(expiredPayload, {
-                secret:    configService.get('jwt.secret'),
-                expiresIn: 0, // already expired
-            });
-
-            // Wait a bit to ensure expiration
-            await new Promise(r => setTimeout(r, 100));
+            const expired = jwtService.sign(
+                { sub: 'mc_test', type: 'external_client' },
+                { expiresIn: 1 },
+            );
+            await new Promise(r => setTimeout(r, 1100));
 
             await request(app.getHttpServer())
                 .get('/v1/requests/REQ0001234')
-                .set('Authorization', `Bearer ${expiredToken}`)
+                .set('Authorization', `Bearer ${expired}`)
                 .expect(401);
         });
 
         it('should return 401 for malformed token', async () => {
             if (!app) return;
-
             await request(app.getHttpServer())
                 .get('/v1/requests/REQ0001234')
-                .set('Authorization', 'Bearer invalid-token-format')
+                .set('Authorization', 'Bearer not-a-jwt')
                 .expect(401);
         });
 
         it('should return 401 when token type is not external_client', async () => {
             if (!app) return;
 
-            const wrongTypePayload = {
-                sub:  'internal-svc',
-                type: 'internal_service',
-            };
-            const wrongTypeToken = jwtService.sign(wrongTypePayload, {
-                secret:    configService.get('jwt.secret'),
-                expiresIn: 3600,
-            });
-
+            const wrongType = jwtService.sign(
+                { sub: 'svc', type: 'internal_service' },
+                { expiresIn: 3600 },
+            );
             await request(app.getHttpServer())
                 .get('/v1/requests/REQ0001234')
-                .set('Authorization', `Bearer ${wrongTypeToken}`)
+                .set('Authorization', `Bearer ${wrongType}`)
                 .expect(401);
         });
     });
 
-    describe('GET /health/status (no auth)', () => {
+    describe('GET /health/ping', () => {
         it('should return 200 without authentication', async () => {
             if (!app) return;
-
-            await request(app.getHttpServer())
-                .get('/health/status')
+            const res = await request(app.getHttpServer())
+                .get('/health/ping')
                 .expect(200);
+
+            expect(res.body).toHaveProperty('status', 'ok');
+            expect(res.body).toHaveProperty('timestamp');
+            expect(res.body).toHaveProperty('uptime');
         });
     });
 });
 
-/**
- * Intenta conectar a MySQL para decidir si ejecutar tests e2e
- */
 async function tryConnect(host: string): Promise<boolean> {
     try {
         const net = await import('net');

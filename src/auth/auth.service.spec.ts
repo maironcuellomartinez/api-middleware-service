@@ -304,8 +304,9 @@ describe('AuthService', () => {
 
             expect(refreshRepo.create).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    clientId: 'mc_abc123',
+                    clientId:  'mc_abc123',
                     tokenHash: expect.any(String),
+                    jtiHash:   expect.any(String),
                     expiresAt: expect.any(Date),
                 }),
             );
@@ -328,6 +329,7 @@ describe('AuthService', () => {
             id:        1,
             clientId:  'mc_abc123',
             tokenHash: '$2a$10$storedhash',
+            jtiHash:   'sha256-of-uuid-jti',
             expiresAt: new Date(Date.now() + 3600 * 1000), // 1 hora en el futuro
             revokedAt: null,
             createdAt: new Date(),
@@ -359,8 +361,7 @@ describe('AuthService', () => {
 
             expect(jwtService.verify).toHaveBeenCalledWith('valid.jwt.refresh');
             expect(refreshRepo.findOne).toHaveBeenCalledWith({
-                where: { clientId: 'mc_abc123', revokedAt: expect.any(Object) },
-                order: { createdAt: 'DESC' },
+                where: { clientId: 'mc_abc123', jtiHash: expect.any(String), revokedAt: expect.any(Object) },
             });
             expect(bcrypt.compare).toHaveBeenCalledWith('uuid-jti', '$2a$10$storedhash');
             expect(result).toEqual({

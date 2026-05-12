@@ -36,9 +36,36 @@ import {
   ArchitectureFlow,
   BulkheadFlow,
 } from './MotionComponents';
+import { MermaidDiagram } from './MermaidDiagram';
 
 export function useMdxComponents(): MDXComponents {
   return {
+    // ── Componentes de layout disponibles en MDX sin import ──
+    CardHeader: ({ className, children, ...props }: any) => (
+      <CardHeader className={cn(className)} {...props}>{children}</CardHeader>
+    ),
+    CardTitle: ({ className, children, ...props }: any) => (
+      <CardTitle className={cn(className)} {...props}>{children}</CardTitle>
+    ),
+    CardContent: ({ className, children, ...props }: any) => (
+      <CardContent className={cn(className)} {...props}>{children}</CardContent>
+    ),
+    CardDescription: ({ className, children, ...props }: any) => (
+      <CardDescription className={cn(className)} {...props}>{children}</CardDescription>
+    ),
+    AlertTitle: ({ className, children, ...props }: any) => (
+      <AlertTitle className={cn(className)} {...props}>{children}</AlertTitle>
+    ),
+    AlertDescription: ({ className, children, ...props }: any) => (
+      <AlertDescription className={cn(className)} {...props}>{children}</AlertDescription>
+    ),
+    // ── Componentes de flujo animado disponibles en MDX sin import ──
+    FlowStep: (props: any) => <FlowStep {...props} />,
+    FlowList: (props: any) => <FlowList {...props} />,
+    RefreshTokenFlow: () => <RefreshTokenFlow />,
+    ArchitectureFlow: () => <ArchitectureFlow />,
+    BulkheadFlow: () => <BulkheadFlow />,
+    MermaidDiagram: (props: any) => <MermaidDiagram {...props} />,
     h1: ({ className, children, ...props }) => (
       <MotionHeader
         as="h1"
@@ -213,4 +240,5 @@ export {
   RefreshTokenFlow,
   ArchitectureFlow,
   BulkheadFlow,
+  MermaidDiagram,
 };

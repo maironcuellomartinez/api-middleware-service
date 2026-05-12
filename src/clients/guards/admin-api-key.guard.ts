@@ -9,7 +9,7 @@ import { Request } from 'express';
  */
 @Injectable()
 export class AdminApiKeyGuard implements CanActivate {
-    constructor(private readonly config: ConfigService) {}
+    constructor(private readonly config: ConfigService) { }
 
     canActivate(ctx: ExecutionContext): boolean {
         const expected = this.config.get<string>('admin.apiKey');

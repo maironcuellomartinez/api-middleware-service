@@ -22,7 +22,7 @@ export class AuthService {
         private readonly config: ConfigService,
         @InjectRepository(RefreshTokenEntity)
         private readonly refreshRepo: Repository<RefreshTokenEntity>,
-    ) {}
+    ) { }
 
     async issueToken(
         clientId: string,
@@ -53,8 +53,8 @@ export class AuthService {
         }
 
         const payload: Record<string, any> = {
-            sub:        client.clientId,
-            type:       'external_client',
+            sub: client.clientId,
+            type: 'external_client',
             clientName: client.name,
         };
 
@@ -93,10 +93,10 @@ export class AuthService {
         const clientId = payload.sub;
         const jti = payload.jti;
 
-        // Buscar el refresh token en BD por hash del jti
+        // Buscar el refresh token en BD por lookup exacto del jti
+        const jtiHash = crypto.createHash('sha256').update(jti).digest('hex');
         const storedToken = await this.refreshRepo.findOne({
-            where: { clientId, revokedAt: IsNull() },
-            order: { createdAt: 'DESC' },
+            where: { clientId, jtiHash, revokedAt: IsNull() },
         });
 
         if (!storedToken) {
@@ -130,8 +130,8 @@ export class AuthService {
         );
 
         const accessPayload: Record<string, any> = {
-            sub:        client.clientId,
-            type:       'external_client',
+            sub: client.clientId,
+            type: 'external_client',
             clientName: client.name,
         };
 
@@ -156,10 +156,12 @@ export class AuthService {
         );
 
         const tokenHash = await bcrypt.hash(jti, 10);
+        const jtiHash = crypto.createHash('sha256').update(jti).digest('hex');
 
         const entity = this.refreshRepo.create({
             clientId,
             tokenHash,
+            jtiHash,
             expiresAt,
         });
         await this.refreshRepo.save(entity);
@@ -167,7 +169,7 @@ export class AuthService {
         // Firmar el refresh token como JWT
         return this.jwt.sign(
             {
-                sub:  clientId,
+                sub: clientId,
                 type: 'refresh_token',
                 jti,
             },
