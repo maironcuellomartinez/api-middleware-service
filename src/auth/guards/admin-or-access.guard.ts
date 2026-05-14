@@ -68,11 +68,13 @@ export class AdminOrAccessGuard implements CanActivate {
         const cookieHeader = request.headers.cookie;
         if (!cookieHeader) return undefined;
 
-        const cookies = cookieHeader.split(';').map(c => c.trim());
-        for (const cookie of cookies) {
-            const [name, ...rest] = cookie.split('=');
-            if (name.trim() === COOKIE_NAME) {
-                return rest.join('=');
+        for (const raw of cookieHeader.split(';')) {
+            const cookie = raw.trim();
+            const eqIdx = cookie.indexOf('=');
+            if (eqIdx === -1) continue;
+            const name = cookie.slice(0, eqIdx).trim();
+            if (name === COOKIE_NAME) {
+                return cookie.slice(eqIdx + 1);
             }
         }
         return undefined;

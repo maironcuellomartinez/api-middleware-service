@@ -40,12 +40,14 @@ export class AdminSessionGuard implements CanActivate {
         const cookieHeader = request.headers.cookie;
         if (!cookieHeader) return undefined;
 
-        // Parse manual del header Cookie
-        const cookies = cookieHeader.split(';').map(c => c.trim());
-        for (const cookie of cookies) {
-            const [name, ...rest] = cookie.split('=');
-            if (name.trim() === COOKIE_NAME) {
-                return rest.join('='); // re-join por si el valor contiene =
+        // Parse manual del header Cookie (evita indexacion insegura)
+        for (const raw of cookieHeader.split(';')) {
+            const cookie = raw.trim();
+            const eqIdx = cookie.indexOf('=');
+            if (eqIdx === -1) continue;
+            const name = cookie.slice(0, eqIdx).trim();
+            if (name === COOKIE_NAME) {
+                return cookie.slice(eqIdx + 1); // re-join por si el valor contiene =
             }
         }
         return undefined;

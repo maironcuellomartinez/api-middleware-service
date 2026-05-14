@@ -41,7 +41,7 @@ export class ClientsService {
             clientId,
             clientSecretHash: hash,
             name: dto.name,
-            description: dto.description,
+            description: dto.description ?? null,
             tokenExpiresInSeconds: dto.tokenExpiresInSeconds ?? 3600,
             allowedScopes: dto.scopes && dto.scopes.length > 0 ? dto.scopes : null,
         });

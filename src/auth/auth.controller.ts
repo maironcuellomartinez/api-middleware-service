@@ -64,12 +64,13 @@ export class AuthController {
         if (!authHeader) return null;
 
         const parts = authHeader.split(' ');
-        if (parts.length !== 2 || parts[0].toLowerCase() !== 'basic') {
+        const [scheme, credentials] = parts;
+        if (!scheme || !credentials || scheme.toLowerCase() !== 'basic') {
             return null;
         }
 
         try {
-            const decoded = Buffer.from(parts[1], 'base64').toString('utf-8');
+            const decoded = Buffer.from(credentials, 'base64').toString('utf-8');
             const colonIndex = decoded.indexOf(':');
             if (colonIndex === -1) return null;
 

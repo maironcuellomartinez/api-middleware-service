@@ -4,7 +4,7 @@ import { IsString, IsNotEmpty, IsOptional, MaxLength, IsInt, Min, Max, IsArray }
 export class CreateClientDto {
     @ApiProperty({ example: 'Mi App Externa', description: 'Nombre de la aplicacion externa' })
     @IsString() @IsNotEmpty() @MaxLength(100)
-    name: string;
+    name!: string;
 
     @ApiPropertyOptional({ example: 'App de consulta de incidencias para el portal HR' })
     @IsOptional() @IsString() @MaxLength(255)
@@ -19,20 +19,20 @@ export class CreateClientDto {
     scopes?: string[];
 }
 
-export class ClientCredentialsResponseDto {
+export type ClientCredentialsResponseDto = {
     clientId: string;
-    clientSecret: string; // shown only once
+    clientSecret: string;
     name: string;
     message: string;
-}
+};
 
-export class ClientResponseDto {
+export type ClientResponseDto = {
     clientId: string;
     name: string;
-    description: string;
+    description: string | null;
     isActive: boolean;
     tokenExpiresInSeconds: number;
     allowedScopes: string[] | null;
     createdAt: Date;
     updatedAt: Date;
-}
+};

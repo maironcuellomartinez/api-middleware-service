@@ -1,6 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
@@ -33,15 +33,15 @@ import configuration from './config/configuration';
         }),
         TypeOrmModule.forRootAsync({
             inject: [ConfigService],
-            useFactory: (config: ConfigService) => ({
-                type:        'mysql',
-                host:        config.get('db.host'),
-                port:        config.get<number>('db.port'),
-                username:    config.get('db.username'),
-                password:    config.get('db.password'),
-                database:    config.get('db.database'),
-                entities:    [ExternalClientEntity, AdminEntity, RefreshTokenEntity],
-                synchronize: config.get('app.env') === 'development',
+            useFactory: (config: ConfigService): TypeOrmModuleOptions => ({
+                type: 'mysql',
+                host: config.get<string>('db.host')!,
+                port: config.get<number>('db.port')!,
+                username: config.get<string>('db.username')!,
+                password: config.get<string>('db.password')!,
+                database: config.get<string>('db.database')!,
+                entities: [ExternalClientEntity, AdminEntity, RefreshTokenEntity],
+                synchronize: config.get<string>('app.env') === 'development',
             }),
         }),
         BulkheadModule,

@@ -15,7 +15,7 @@ import { JWT_ADMIN_SERVICE } from '../auth/guards/admin-or-access.guard';
             imports: [ConfigModule],
             inject:  [ConfigService],
             useFactory: (config: ConfigService) => ({
-                secret:      config.get('admin.sessionSecret'),
+                secret:      config.get<string>('admin.sessionSecret')!,
                 signOptions: { issuer: 'api-middleware-service', expiresIn: '24h' },
             }),
         }),

@@ -14,6 +14,7 @@ import {
   TableHead,
   TableCell,
 } from '../components/ui/table';
+import { FilterX, RefreshCw } from 'lucide-react';
 
 // Estados reales del monolith
 const STATUSES = [
@@ -122,10 +123,12 @@ export default function RecordsPage() {
         <div className="flex gap-2">
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={handleClear}>
+              <FilterX className="mr-1.5 h-3.5 w-3.5" />
               Limpiar
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={() => loadData(filters)}>
+            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
             Actualizar
           </Button>
         </div>
@@ -142,7 +145,10 @@ export default function RecordsPage() {
           ) : state.kind === 'error' ? (
             <div className="flex flex-col items-center justify-center h-48 gap-2 text-sm">
               <p className="text-destructive font-medium">{state.message}</p>
-              <Button variant="outline" size="sm" onClick={() => loadData(filters)}>Reintentar</Button>
+              <Button variant="outline" size="sm" onClick={() => loadData(filters)}>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                Reintentar
+              </Button>
             </div>
           ) : state.records.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
@@ -195,6 +201,7 @@ function GatewayDownState({ onRetry }: { onRetry: () => void }) {
         </p>
       </div>
       <Button variant="outline" size="sm" onClick={onRetry}>
+        <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
         Reintentar
       </Button>
     </div>

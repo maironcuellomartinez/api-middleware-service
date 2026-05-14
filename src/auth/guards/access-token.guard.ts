@@ -19,7 +19,7 @@ export class AccessTokenGuard implements CanActivate {
         }
 
         const token = auth.slice(7);
-        const secret = this.config.get<string>('jwt.secret');
+        const secret = this.config.get<string>('jwt.secret')!;
 
         try {
             const payload = this.jwt.verify(token, { secret }) as any;

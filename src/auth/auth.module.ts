@@ -21,15 +21,15 @@ import { AdminModule } from '../admin/admin.module';
         TypeOrmModule.forFeature([RefreshTokenEntity]),
         JwtModule.registerAsync({
             imports: [ConfigModule],
-            inject:  [ConfigService],
+            inject: [ConfigService],
             useFactory: (config: ConfigService) => ({
-                secret:      config.get('jwt.secret'),
+                secret: config.get<string>('jwt.secret')!,
                 signOptions: { issuer: 'api-middleware-service', audience: 'external-clients' },
             }),
         }),
     ],
     controllers: [AuthController],
-    providers:   [
+    providers: [
         AuthService,
         TokenCleanupJob,
         AccessTokenGuard,
@@ -38,9 +38,9 @@ import { AdminModule } from '../admin/admin.module';
         {
             provide: JWT_AUTH_SERVICE,
             useFactory: (jwtService: JwtService) => jwtService,
-            inject:     [JwtService],
+            inject: [JwtService],
         },
     ],
-    exports:     [JwtModule, AccessTokenGuard, AdminOrAccessGuard, JWT_AUTH_SERVICE],
+    exports: [JwtModule, AccessTokenGuard, AdminOrAccessGuard, JWT_AUTH_SERVICE],
 })
-export class AuthModule {}
+export class AuthModule { }

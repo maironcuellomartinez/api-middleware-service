@@ -3,7 +3,6 @@ import { NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
 import { ClientsService } from './clients.service';
 import { ExternalClientEntity } from './entities/external-client.entity';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -47,10 +46,12 @@ describe('ClientsService', () => {
 
     beforeEach(async () => {
         repo = {
-            create:      jest.fn(),
-            save:        jest.fn(),
-            find:        jest.fn(),
-            findOneBy:   jest.fn(),
+            create:         jest.fn(),
+            save:           jest.fn(),
+            find:           jest.fn(),
+            findAndCount:   jest.fn(),
+            findOneBy:      jest.fn(),
+            delete:         jest.fn(),
         } as any;
 
         const module: TestingModule = await Test.createTestingModule({
@@ -79,8 +80,8 @@ describe('ClientsService', () => {
 
         it('should create a client and return credentials', async () => {
             mockRandomBytes
-                .mockReturnValueOnce(Buffer.alloc(24, 0x61))  // clientId → hex: 6161...
-                .mockReturnValueOnce(Buffer.alloc(32, 0x62)); // clientSecret → hex: 6262...
+                .mockReturnValueOnce(Buffer.alloc(24, 0x61))
+                .mockReturnValueOnce(Buffer.alloc(32, 0x62));
 
             (bcrypt.hash as jest.Mock).mockResolvedValue('$2a$10$hashed');
 
@@ -91,16 +92,14 @@ describe('ClientsService', () => {
             const result = await service.create(dto);
 
             expect(mockRandomBytes).toHaveBeenCalledTimes(2);
-            expect(bcrypt.hash).toHaveBeenCalledWith(
-                hexFromByte(0x62, 32),
-                10,
-            );
+            expect(bcrypt.hash).toHaveBeenCalledWith(hexFromByte(0x62, 32), 10);
             expect(repo.create).toHaveBeenCalledWith({
-                clientId:               'mc_' + hexFromByte(0x61, 24),
-                clientSecretHash:       '$2a$10$hashed',
-                name:                   'New App',
-                description:            'Description',
-                tokenExpiresInSeconds:  3600,
+                clientId:              'mc_' + hexFromByte(0x61, 24),
+                clientSecretHash:      '$2a$10$hashed',
+                name:                  'New App',
+                description:           'Description',
+                tokenExpiresInSeconds: 3600,
+                allowedScopes:         null,
             });
             expect(repo.save).toHaveBeenCalledWith(entity);
             expect(result).toEqual({
@@ -115,8 +114,8 @@ describe('ClientsService', () => {
             const dtoNoDesc: CreateClientDto = { name: 'Minimal App' };
 
             mockRandomBytes
-                .mockReturnValueOnce(Buffer.alloc(24, 0x63))  // clientId → hex: 6363...
-                .mockReturnValueOnce(Buffer.alloc(32, 0x64)); // clientSecret → hex: 6464...
+                .mockReturnValueOnce(Buffer.alloc(24, 0x63))
+                .mockReturnValueOnce(Buffer.alloc(32, 0x64));
 
             (bcrypt.hash as jest.Mock).mockResolvedValue('$2a$10$hashed');
 
@@ -127,11 +126,12 @@ describe('ClientsService', () => {
             const result = await service.create(dtoNoDesc);
 
             expect(repo.create).toHaveBeenCalledWith({
-                clientId:               'mc_' + hexFromByte(0x63, 24),
-                clientSecretHash:       '$2a$10$hashed',
-                name:                   'Minimal App',
-                description:            undefined,
-                tokenExpiresInSeconds:  3600,
+                clientId:              'mc_' + hexFromByte(0x63, 24),
+                clientSecretHash:      '$2a$10$hashed',
+                name:                  'Minimal App',
+                description:           null,
+                tokenExpiresInSeconds: 3600,
+                allowedScopes:         null,
             });
             expect(result.name).toBe('Minimal App');
         });
@@ -144,8 +144,8 @@ describe('ClientsService', () => {
             };
 
             mockRandomBytes
-                .mockReturnValueOnce(Buffer.alloc(24, 0x65))  // clientId
-                .mockReturnValueOnce(Buffer.alloc(32, 0x66)); // clientSecret
+                .mockReturnValueOnce(Buffer.alloc(24, 0x65))
+                .mockReturnValueOnce(Buffer.alloc(32, 0x66));
 
             (bcrypt.hash as jest.Mock).mockResolvedValue('$2a$10$hashed');
 
@@ -161,11 +161,12 @@ describe('ClientsService', () => {
             const result = await service.create(dtoCustomExp);
 
             expect(repo.create).toHaveBeenCalledWith({
-                clientId:               'mc_' + hexFromByte(0x65, 24),
-                clientSecretHash:       '$2a$10$hashed',
-                name:                   'Custom Exp App',
-                description:            'App with custom token expiration',
-                tokenExpiresInSeconds:  7200,
+                clientId:              'mc_' + hexFromByte(0x65, 24),
+                clientSecretHash:      '$2a$10$hashed',
+                name:                  'Custom Exp App',
+                description:           'App with custom token expiration',
+                tokenExpiresInSeconds: 7200,
+                allowedScopes:         null,
             });
             expect(result.name).toBe('Custom Exp App');
         });
@@ -194,27 +195,33 @@ describe('ClientsService', () => {
     });
 
     describe('findAll', () => {
-        it('should return all clients ordered by createdAt DESC', async () => {
+        it('should return paginated clients ordered by createdAt DESC', async () => {
             const entities = [
                 createMockEntity({ clientId: 'mc_001', name: 'App 1', createdAt: new Date('2025-02-01') }),
                 createMockEntity({ clientId: 'mc_002', name: 'App 2', createdAt: new Date('2025-01-01') }),
             ];
-            repo.find.mockResolvedValue(entities as ExternalClientEntity[]);
+            repo.findAndCount.mockResolvedValue([entities, 2]);
 
             const result = await service.findAll();
 
-            expect(repo.find).toHaveBeenCalledWith({ order: { createdAt: 'DESC' } });
-            expect(result).toHaveLength(2);
-            expect(result[0].clientId).toBe('mc_001');
-            expect(result[1].clientId).toBe('mc_002');
+            expect(repo.findAndCount).toHaveBeenCalledWith({
+                order: { createdAt: 'DESC' },
+                skip: 0,
+                take: 20,
+            });
+            expect(result.total).toBe(2);
+            expect(result.data).toHaveLength(2);
+            expect(result.data[0]?.clientId).toBe('mc_001');
+            expect(result.data[1]?.clientId).toBe('mc_002');
         });
 
-        it('should return empty array when no clients exist', async () => {
-            repo.find.mockResolvedValue([]);
+        it('should return empty page when no clients exist', async () => {
+            repo.findAndCount.mockResolvedValue([[], 0]);
 
             const result = await service.findAll();
 
-            expect(result).toEqual([]);
+            expect(result.data).toEqual([]);
+            expect(result.total).toBe(0);
         });
 
         it('should include tokenExpiresInSeconds in each response', async () => {
@@ -222,12 +229,12 @@ describe('ClientsService', () => {
                 createMockEntity({ clientId: 'mc_001', tokenExpiresInSeconds: 7200 }),
                 createMockEntity({ clientId: 'mc_002', tokenExpiresInSeconds: 3600 }),
             ];
-            repo.find.mockResolvedValue(entities as ExternalClientEntity[]);
+            repo.findAndCount.mockResolvedValue([entities, 2]);
 
             const result = await service.findAll();
 
-            expect(result[0].tokenExpiresInSeconds).toBe(7200);
-            expect(result[1].tokenExpiresInSeconds).toBe(3600);
+            expect(result.data[0]?.tokenExpiresInSeconds).toBe(7200);
+            expect(result.data[1]?.tokenExpiresInSeconds).toBe(3600);
         });
     });
 
@@ -272,10 +279,7 @@ describe('ClientsService', () => {
 
             const result = await service.rotateSecret('mc_abc123');
 
-            expect(bcrypt.hash).toHaveBeenCalledWith(
-                hexFromByte(0x65, 32),
-                10,
-            );
+            expect(bcrypt.hash).toHaveBeenCalledWith(hexFromByte(0x65, 32), 10);
             expect(repo.save).toHaveBeenCalledWith(
                 expect.objectContaining({ clientSecretHash: '$2a$10$newhash' }),
             );
@@ -341,7 +345,7 @@ describe('ClientsService', () => {
         });
 
         it('should return null when client is inactive', async () => {
-            repo.findOneBy.mockResolvedValue(null); // isActive: true filter excludes inactive
+            repo.findOneBy.mockResolvedValue(null);
 
             const result = await service.validateCredentials('mc_inactive', 'secret');
 

@@ -16,7 +16,7 @@ import { Textarea } from '../components/ui/textarea';
 import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
+import { Card, CardContent } from '../components/ui/card';
 import {
   Table,
   TableHeader,
@@ -33,13 +33,26 @@ import {
   DialogDescription,
   DialogFooter,
 } from '../components/ui/dialog';
+import {
+  Plus,
+  Eye,
+  RotateCw,
+  PowerOff,
+  Power,
+  Trash2,
+  X,
+  CheckCircle,
+  KeyRound,
+  AlertTriangle,
+  ShieldCheck,
+} from 'lucide-react';
 import ViewClientSheet from '../components/ViewClientSheet';
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
+  const [clients, setClients]           = useState<Client[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState<string | null>(null);
+  const [showCreate, setShowCreate]     = useState(false);
   const [createResult, setCreateResult] = useState<CreateClientResult | null>(null);
   const [rotateResult, setRotateResult] = useState<CreateClientResult | null>(null);
   const [rotateTarget, setRotateTarget] = useState<string | null>(null);
@@ -60,9 +73,7 @@ export default function ClientsPage() {
     }
   };
 
-  useEffect(() => {
-    loadClients();
-  }, []);
+  useEffect(() => { loadClients(); }, []);
 
   const handleCreate = async (payload: CreateClientPayload) => {
     try {
@@ -73,10 +84,6 @@ export default function ClientsPage() {
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : 'Failed to create client');
     }
-  };
-
-  const handleRotate = (clientId: string) => {
-    setRotateTarget(clientId);
   };
 
   const handleConfirmRotate = async () => {
@@ -124,13 +131,9 @@ export default function ClientsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-foreground">Clients</h2>
-        <Button
-          onClick={() => {
-            setShowCreate(true);
-            setCreateResult(null);
-          }}
-        >
-          Create Client
+        <Button onClick={() => { setShowCreate(true); setCreateResult(null); }}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nuevo cliente
         </Button>
       </div>
 
@@ -142,62 +145,73 @@ export default function ClientsPage() {
       )}
 
       {createResult && (
-        <Alert variant="warning">
-          <AlertTitle>Client created successfully</AlertTitle>
+        <Alert variant="warning" className="relative pr-10">
+          <ShieldCheck className="h-4 w-4" />
+          <AlertTitle>Cliente creado exitosamente</AlertTitle>
           <AlertDescription>
             <p className="mt-1">
-              Client ID: <code className="font-mono bg-yellow-100 px-1 rounded">{createResult.clientId}</code>
+              Client ID: <code className="font-mono bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded">{createResult.clientId}</code>
             </p>
             <p>
-              Client Secret: <code className="font-mono bg-yellow-100 px-1 rounded break-all">{createResult.clientSecret}</code>
+              Client Secret: <code className="font-mono bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded break-all">{createResult.clientSecret}</code>
             </p>
-            <p className="mt-1 text-xs text-yellow-600">
-              Save this secret — it will not be shown again.
+            <p className="mt-1 text-xs opacity-70">
+              Guardá este secret — no se mostrará nuevamente.
             </p>
           </AlertDescription>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-2 h-6 w-6 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-200/50"
+            onClick={() => setCreateResult(null)}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
         </Alert>
       )}
 
       {rotateResult && (
-        <Alert variant="warning">
-          <AlertTitle>Secret rotated successfully</AlertTitle>
+        <Alert variant="warning" className="relative pr-10">
+          <KeyRound className="h-4 w-4" />
+          <AlertTitle>Secret rotado exitosamente</AlertTitle>
           <AlertDescription>
             <p className="mt-1">
-              New Secret: <code className="font-mono bg-yellow-100 px-1 rounded break-all">{rotateResult.clientSecret}</code>
+              Nuevo secret: <code className="font-mono bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded break-all">{rotateResult.clientSecret}</code>
             </p>
-            <p className="mt-1 text-xs text-yellow-600">
-              Save this secret — it will not be shown again.
+            <p className="mt-1 text-xs opacity-70">
+              Guardá este secret — no se mostrará nuevamente.
             </p>
           </AlertDescription>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-2 h-6 w-6 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-200/50"
+            onClick={() => setRotateResult(null)}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
         </Alert>
-      )}
-
-      {showCreate && (
-        <CreateClientForm
-          onSubmit={handleCreate}
-          onCancel={() => setShowCreate(false)}
-        />
       )}
 
       <Card>
         <CardContent className="p-0">
           {loading ? (
             <div className="flex items-center justify-center h-48 text-muted-foreground">
-              Loading clients...
+              Cargando clientes...
             </div>
           ) : clients.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-muted-foreground">
-              No clients found
+              No hay clientes registrados
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Client ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Creado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -211,7 +225,7 @@ export default function ClientsPage() {
                     <TableCell className="font-medium">{client.name}</TableCell>
                     <TableCell>
                       <Badge variant={client.isActive ? 'success' : 'destructive'}>
-                        {client.isActive ? 'Active' : 'Inactive'}
+                        {client.isActive ? 'Activo' : 'Inactivo'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">
@@ -224,14 +238,16 @@ export default function ClientsPage() {
                           size="sm"
                           onClick={() => setViewClientId(client.clientId)}
                         >
-                          View
+                          <Eye className="mr-1.5 h-3.5 w-3.5" />
+                          Ver
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setRotateTarget(client.clientId)}
                         >
-                          Rotate
+                          <RotateCw className="mr-1.5 h-3.5 w-3.5" />
+                          Rotar
                         </Button>
                         {client.isActive ? (
                           <Button
@@ -239,7 +255,8 @@ export default function ClientsPage() {
                             size="sm"
                             onClick={() => setStatusTarget(client)}
                           >
-                            Deactivate
+                            <PowerOff className="mr-1.5 h-3.5 w-3.5" />
+                            Desactivar
                           </Button>
                         ) : (
                           <>
@@ -248,14 +265,16 @@ export default function ClientsPage() {
                               size="sm"
                               onClick={() => setStatusTarget(client)}
                             >
-                              Reactivate
+                              <Power className="mr-1.5 h-3.5 w-3.5" />
+                              Reactivar
                             </Button>
                             <Button
                               variant="destructive"
                               size="sm"
                               onClick={() => setDeleteTarget(client)}
                             >
-                              Delete
+                              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                              Eliminar
                             </Button>
                           </>
                         )}
@@ -274,12 +293,31 @@ export default function ClientsPage() {
         onClose={() => setViewClientId(null)}
       />
 
-      {/* Confirmación de cambio de estado */}
-      <Dialog open={statusTarget !== null} onOpenChange={(open) => { if (!open) setStatusTarget(null); }}>
-        <DialogContent>
+      {/* Dialog: Crear cliente */}
+      <Dialog open={showCreate} onOpenChange={(open) => { if (!open) setShowCreate(false); }}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {statusTarget?.isActive ? 'Desactivar cliente' : 'Reactivar cliente'}
+            <DialogTitle>Nuevo cliente</DialogTitle>
+            <DialogDescription>
+              Registrá una nueva aplicación externa para acceder a la API mediante OAuth2.
+            </DialogDescription>
+          </DialogHeader>
+          <CreateClientForm
+            onSubmit={handleCreate}
+            onCancel={() => setShowCreate(false)}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Cambio de estado */}
+      <Dialog open={statusTarget !== null} onOpenChange={(open) => { if (!open) setStatusTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {statusTarget?.isActive
+                ? <><PowerOff className="h-5 w-5 text-destructive" /> Desactivar cliente</>
+                : <><Power className="h-5 w-5 text-primary" /> Reactivar cliente</>
+              }
             </DialogTitle>
             <DialogDescription>
               {statusTarget?.isActive
@@ -290,23 +328,30 @@ export default function ClientsPage() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStatusTarget(null)}>
+              <X className="mr-2 h-4 w-4" />
               Cancelar
             </Button>
             <Button
               variant={statusTarget?.isActive ? 'destructive' : 'default'}
               onClick={handleToggleStatus}
             >
-              {statusTarget?.isActive ? 'Desactivar' : 'Reactivar'}
+              {statusTarget?.isActive
+                ? <><PowerOff className="mr-2 h-4 w-4" /> Desactivar</>
+                : <><CheckCircle className="mr-2 h-4 w-4" /> Reactivar</>
+              }
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Confirmación de eliminación permanente */}
+      {/* Dialog: Eliminación permanente */}
       <Dialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Eliminar cliente permanentemente</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Eliminar cliente permanentemente
+            </DialogTitle>
             <DialogDescription>
               Esta acción <strong>no se puede deshacer</strong>. El cliente{' '}
               <strong>{deleteTarget?.name}</strong> y todas sus credenciales serán eliminados
@@ -315,33 +360,37 @@ export default function ClientsPage() {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              <X className="mr-2 h-4 w-4" />
               Cancelar
             </Button>
             <Button variant="destructive" onClick={handleDelete}>
+              <Trash2 className="mr-2 h-4 w-4" />
               Eliminar definitivamente
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Confirmación de rotación de secret */}
+      {/* Dialog: Rotación de secret */}
       <Dialog open={rotateTarget !== null} onOpenChange={(open) => { if (!open) setRotateTarget(null); }}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Rotate Secret</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCw className="h-5 w-5" />
+              Rotar secret
+            </DialogTitle>
             <DialogDescription>
-              This will invalidate the current secret for <strong>{rotateTarget}</strong>. Any services using the old secret will lose access immediately.
+              Se invalidará el secret actual de <strong>{rotateTarget}</strong>. Cualquier servicio que use el secret anterior perderá acceso de inmediato.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Input value={rotateTarget ?? ''} disabled />
-          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRotateTarget(null)}>
-              Cancel
+              <X className="mr-2 h-4 w-4" />
+              Cancelar
             </Button>
             <Button variant="destructive" onClick={handleConfirmRotate}>
-              Rotate
+              <RotateCw className="mr-2 h-4 w-4" />
+              Rotar secret
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -357,7 +406,7 @@ function CreateClientForm({
   onSubmit: (payload: CreateClientPayload) => void;
   onCancel: () => void;
 }) {
-  const [name, setName] = useState('');
+  const [name, setName]               = useState('');
   const [description, setDescription] = useState('');
   const [scopesInput, setScopesInput] = useState('');
 
@@ -376,51 +425,50 @@ function CreateClientForm({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create New Client</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Client Name *</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="My App"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="scopes">Allowed Scopes</Label>
-            <Input
-              id="scopes"
-              value={scopesInput}
-              onChange={(e) => setScopesInput(e.target.value)}
-              placeholder="records:read incidents:read  (space or comma separated)"
-            />
-            <p className="text-xs text-muted-foreground">
-              Leave empty to allow all scopes. Separate with spaces or commas.
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Button type="submit">Create</Button>
-            <Button type="button" variant="secondary" onClick={onCancel}>
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+    <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+      <div className="space-y-2">
+        <Label htmlFor="name">Nombre del cliente *</Label>
+        <Input
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Mi aplicación"
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="description">Descripción</Label>
+        <Textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Descripción opcional"
+          className="resize-none"
+          rows={3}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="scopes">Scopes permitidos</Label>
+        <Input
+          id="scopes"
+          value={scopesInput}
+          onChange={(e) => setScopesInput(e.target.value)}
+          placeholder="records:read incidents:read"
+        />
+        <p className="text-xs text-muted-foreground">
+          Dejá vacío para permitir todos los scopes. Separar con espacios o comas.
+        </p>
+      </div>
+      <DialogFooter className="pt-2">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          <X className="mr-2 h-4 w-4" />
+          Cancelar
+        </Button>
+        <Button type="submit">
+          <Plus className="mr-2 h-4 w-4" />
+          Crear cliente
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

@@ -6,5 +6,5 @@ export class UpdateTokenExpiryDto {
     @IsInt()
     @Min(3600)
     @Max(604800)
-    tokenExpiresInSeconds: number;
+    tokenExpiresInSeconds!: number;
 }

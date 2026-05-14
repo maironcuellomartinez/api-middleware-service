@@ -150,6 +150,14 @@ export class AuthService {
     }
 
     private async issueRefreshToken(clientId: string): Promise<string> {
+        /**
+         * Genera un refresh token para un cliente
+         * 
+         * @param clientId - ID del cliente
+         * @param tokenHash - Hash del token
+         * @param jtiHash - Hash del jti - identificador unico
+         * @returns Refresh token
+         */
         const jti = crypto.randomUUID();
         const expiresAt = new Date(
             Date.now() + REFRESH_TOKEN_EXPIRATION_SECONDS * 1000,

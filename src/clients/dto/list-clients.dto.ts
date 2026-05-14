@@ -12,10 +12,10 @@ export class ListClientsDto {
     limit?: number = 20;
 }
 
-export class PaginatedClientsDto<T> {
+export type PaginatedClientsDto<T> = {
     data: T[];
     total: number;
     page: number;
     limit: number;
     totalPages: number;
-}
+};
