@@ -10,7 +10,7 @@ import { OAuthBulkheadGuard } from './guards/oauth-bulkhead.guard';
 import { AdminOrAccessGuard, JWT_AUTH_SERVICE } from './guards/admin-or-access.guard';
 import { RefreshTokenEntity } from './entities/refresh-token.entity';
 import { ClientsModule } from '../clients/clients.module';
-import { BulkheadModule } from '../recilience/bulkhead/bulkhead.module';
+import { BulkheadModule } from '@backendkit-labs/bulkhead/nestjs';
 import { AdminModule } from '../admin/admin.module';
 
 @Module({

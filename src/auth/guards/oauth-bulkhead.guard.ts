@@ -5,8 +5,7 @@ import {
     HttpException,
     Logger,
 } from '@nestjs/common';
-import { BulkheadRegistry } from '../../recilience/bulkhead/bulkhead.registry';
-import { BulkheadRejectedError, BulkheadTimeoutError } from '../../recilience/bulkhead/bulkhead';
+import { BulkheadRegistry, BulkheadRejectedError, BulkheadTimeoutError } from '@backendkit-labs/bulkhead';
 
 /**
  * Estrategia de proteccion para POST /oauth/token usando Bulkhead

@@ -113,21 +113,16 @@ describe('RecordsService', () => {
         it('should return gateway status', () => {
             const status: ReturnType<GatewayClient['getStatus']> = {
                 circuitBreaker: {
-                    state: 'CLOSED',
-                    stats: {
-                        successes: 10,
-                        failures: 0,
-                        rejects: 0,
-                        fires: 10,
-                        fallbacks: 0,
-                        latencyMean: 50,
-                        latencyTimes: [50],
-                        percentiles: { '50': 50, '90': 50, '99': 50 },
-                        timeouts: 0,
-                        cacheHits: 0,
-                        cacheMisses: 0,
-                        semaphoreRejections: 0,
-                    },
+                    name:              'api-gateway',
+                    state:             'closed' as any,
+                    failureRate:       0,
+                    slowCallRate:      0,
+                    bufferedCalls:     0,
+                    totalCalls:        10,
+                    successfulCalls:   10,
+                    failedCalls:       0,
+                    slowCalls:         0,
+                    notPermittedCalls: 0,
                 },
                 bulkhead: { high: { pending: 0, size: 0, concurrency: 10 }, low: { pending: 0, size: 0, concurrency: 5 } },
             };

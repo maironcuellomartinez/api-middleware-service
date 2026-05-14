@@ -21,6 +21,9 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "baseUrl": "./",
+    "paths": {
+      "@backendkit-labs/bulkhead/nestjs": ["./node_modules/@backendkit-labs/bulkhead/dist/nestjs/index"]
+    },
     "incremental": false,
     "skipLibCheck": true,
     "strictNullChecks": true,

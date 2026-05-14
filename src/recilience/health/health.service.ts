@@ -6,7 +6,7 @@ import {
     DiskHealthIndicator,
 } from '@nestjs/terminus';
 import { GatewayClient } from '../../gateway/gateway.client';
-import { HttpBulkheadMiddleware } from '../bulkhead/http-bulkhead.middleware';
+import { HttpBulkheadMiddleware } from '@backendkit-labs/bulkhead/nestjs';
 
 @Injectable()
 export class HealthService {
@@ -53,7 +53,7 @@ export class HealthService {
         };
     }
 
-    private safeCall<T extends Record<string, unknown>>(fn: () => T, fallbackMessage: string): T | { error: string } {
+    private safeCall<T extends object>(fn: () => T, fallbackMessage: string): T | { error: string } {
         try {
             return fn();
         } catch (err) {

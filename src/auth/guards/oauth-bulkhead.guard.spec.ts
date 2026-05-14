@@ -1,8 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpException } from '@nestjs/common';
 import { OAuthBulkheadGuard } from './oauth-bulkhead.guard';
-import { BulkheadRegistry } from '../../recilience/bulkhead/bulkhead.registry';
-import { Bulkhead, BulkheadRejectedError, BulkheadTimeoutError } from '../../recilience/bulkhead/bulkhead';
+import { Bulkhead, BulkheadRegistry, BulkheadRejectedError, BulkheadTimeoutError } from '@backendkit-labs/bulkhead';
 
 describe('OAuthBulkheadGuard', () => {
     let guard: OAuthBulkheadGuard;

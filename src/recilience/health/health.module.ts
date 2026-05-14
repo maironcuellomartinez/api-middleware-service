@@ -4,7 +4,7 @@ import { HttpModule } from '@nestjs/axios';
 import { HealthController } from './health.controller';
 import { HealthService } from './health.service';
 import { GatewayModule } from '../../gateway/gateway.module';
-import { BulkheadModule } from '../bulkhead/bulkhead.module';
+import { BulkheadModule } from '@backendkit-labs/bulkhead/nestjs';
 
 @Module({
     imports: [TerminusModule, HttpModule, GatewayModule, BulkheadModule],
