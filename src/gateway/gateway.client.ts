@@ -14,7 +14,7 @@ import {
 
 @Injectable()
 export class GatewayClient {
-    private readonly logger  = new Logger(GatewayClient.name);
+    private readonly logger = new Logger(GatewayClient.name);
     private readonly baseUrl: string;
     private readonly headers: Record<string, string>;
 
@@ -34,15 +34,15 @@ export class GatewayClient {
         this.headers = { 'Authorization': `Bearer ${m2mToken}`, 'Content-Type': 'application/json' };
 
         this.highPriority = new PQueue({ concurrency: 10 });
-        this.lowPriority  = new PQueue({ concurrency: 5 });
+        this.lowPriority = new PQueue({ concurrency: 5 });
 
         this.breaker = new CircuitBreakerRegistry().getOrCreate({
-            name:              'api-gateway',
-            failureThreshold:  50,
-            minimumCalls:      5,
+            name: 'api-gateway',
+            failureThreshold: 50,
+            minimumCalls: 5,
             slidingWindowSize: 10,
-            openTimeoutMs:     30000,
-            isFailure:         isHttpServerError,
+            openTimeoutMs: 30000,
+            isFailure: isHttpServerError,
             onStateChange: (_from, to) => {
                 if (to === CircuitBreakerState.OPEN)
                     this.logger.warn('Circuit breaker OPEN — api-gateway no disponible');
@@ -81,7 +81,7 @@ export class GatewayClient {
             circuitBreaker: this.breaker.getMetrics(),
             bulkhead: {
                 high: { pending: this.highPriority.pending, size: this.highPriority.size, concurrency: 10 },
-                low:  { pending: this.lowPriority.pending,  size: this.lowPriority.size,  concurrency: 5  },
+                low: { pending: this.lowPriority.pending, size: this.lowPriority.size, concurrency: 5 },
             },
         };
     }
