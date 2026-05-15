@@ -4,7 +4,6 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBasicAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { TokenRequestDto, TokenResponseDto } from './dto/token-request.dto';
 import { RefreshTokenRequestDto, RefreshTokenResponseDto } from './dto/refresh-token.dto';
