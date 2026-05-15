@@ -1,5 +1,13 @@
 {
-  "exclude": ["node_modules", "dist"],
+  "include": [
+    "src",
+    "test"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "test"
+  ],
   "compilerOptions": {
     "module": "commonjs",
     "declaration": true,
@@ -13,9 +21,15 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "baseUrl": "./",
+    "paths": {
+      "@backendkit-labs/bulkhead/nestjs": ["./node_modules/@backendkit-labs/bulkhead/dist/nestjs/index"]
+    },
     "incremental": false,
     "skipLibCheck": true,
-    "strictNullChecks": false,
-    "noImplicitAny": false
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
   }
 }

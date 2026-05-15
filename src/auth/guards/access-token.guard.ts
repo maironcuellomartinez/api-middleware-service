@@ -8,18 +8,18 @@ export class AccessTokenGuard implements CanActivate {
     constructor(
         private readonly jwt: JwtService,
         private readonly config: ConfigService,
-    ) {}
+    ) { }
 
     canActivate(ctx: ExecutionContext): boolean {
         const request = ctx.switchToHttp().getRequest<Request>();
-        const auth    = request.headers.authorization as string | undefined;
+        const auth = request.headers.authorization as string | undefined;
 
         if (!auth?.startsWith('Bearer ')) {
             throw new UnauthorizedException('Se requiere access_token');
         }
 
-        const token  = auth.slice(7);
-        const secret = this.config.get<string>('jwt.secret');
+        const token = auth.slice(7);
+        const secret = this.config.get<string>('jwt.secret')!;
 
         try {
             const payload = this.jwt.verify(token, { secret }) as any;
