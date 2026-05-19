@@ -14,6 +14,7 @@
  */
 import { check, sleep } from 'k6';
 import http from 'k6/http';
+import exec from 'k6/execution';
 import { Counter } from 'k6/metrics';
 import { postToken, postRefresh, getRequests } from './helpers/auth.js';
 
@@ -82,7 +83,7 @@ export function setup() {
 }
 
 export default function (data) {
-  const scenario = __ENV.K6_SCENARIO_NAME || exec.scenario.name;
+  const scenario = exec.scenario.name;
 
   if (scenario === 'bulkhead_oauth') {
     scenarioBulkhead();
