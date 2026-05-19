@@ -15,6 +15,9 @@
     "pm2:delete": "pm2 delete ecosystem.config.js",
     "pm2:logs": "pm2 logs",
     "pm2:status": "pm2 status",
+    "k6:smoke":  "k6 run k6/smoke.test.js",
+    "k6:load":   "k6 run k6/load.test.js",
+    "k6:stress": "k6 run k6/stress.test.js",
     "test": "jest",
     "test:cov": "jest --coverage",
     "test:e2e": "jest --config test/jest-e2e.json"
