@@ -6,3 +6,4 @@
 .env.staging
 .env.test
 /coverage
+k6/env.js

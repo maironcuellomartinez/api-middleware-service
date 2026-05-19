@@ -1,19 +1,16 @@
 import http from 'k6/http';
 import encoding from 'k6/encoding';
+import { K6_CLIENT_ID, K6_CLIENT_SECRET, BASE_URL as ENV_BASE_URL } from '../env.js';
 
-export const BASE_URL = __ENV.BASE_URL || 'http://localhost:3007';
-
-export const CLIENT_ID     = __ENV.K6_CLIENT_ID     || '';
-export const CLIENT_SECRET = __ENV.K6_CLIENT_SECRET || '';
+// Prioridad: env.js → variable de shell (-e flag o entorno)
+export const BASE_URL      = ENV_BASE_URL || __ENV.BASE_URL || 'http://localhost:3007';
+export const CLIENT_ID     = K6_CLIENT_ID     || __ENV.K6_CLIENT_ID     || '';
+export const CLIENT_SECRET = K6_CLIENT_SECRET || __ENV.K6_CLIENT_SECRET || '';
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
   throw new Error(
-    '\n\nFaltan credenciales k6. Corré con:\n' +
-    '  k6 run -e K6_CLIENT_ID=mc_xxx -e K6_CLIENT_SECRET=yyy <test>\n' +
-    'Creá un cliente en el dashboard o con:\n' +
-    '  curl -b cookies.txt -X POST http://localhost:3007/clients \\\n' +
-    '       -H "Content-Type: application/json" \\\n' +
-    '       -d \'{"name":"k6-test","scopes":["records:read"]}\'\n',
+    '\n\nFaltan credenciales. Completá k6/env.js con los valores de tu cliente de prueba.\n' +
+    'Copiá k6/env.example.js → k6/env.js y completá K6_CLIENT_ID y K6_CLIENT_SECRET.\n',
   );
 }
 
