@@ -7,7 +7,14 @@ export const CLIENT_ID     = __ENV.K6_CLIENT_ID     || '';
 export const CLIENT_SECRET = __ENV.K6_CLIENT_SECRET || '';
 
 if (!CLIENT_ID || !CLIENT_SECRET) {
-  console.warn('K6_CLIENT_ID / K6_CLIENT_SECRET no definidos — algunos tests fallarán');
+  throw new Error(
+    '\n\nFaltan credenciales k6. Corré con:\n' +
+    '  k6 run -e K6_CLIENT_ID=mc_xxx -e K6_CLIENT_SECRET=yyy <test>\n' +
+    'Creá un cliente en el dashboard o con:\n' +
+    '  curl -b cookies.txt -X POST http://localhost:3007/clients \\\n' +
+    '       -H "Content-Type: application/json" \\\n' +
+    '       -d \'{"name":"k6-test","scopes":["records:read"]}\'\n',
+  );
 }
 
 /**
