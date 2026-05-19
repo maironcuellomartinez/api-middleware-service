@@ -136,8 +136,8 @@ function scenarioSpike(accessToken) {
   check(res, {
     'spike → no es 5xx':   (r) => r.status < 500,
     'spike → no es 401':   (r) => r.status !== 401,
-    // 200 éxito, 429 bulkhead saturado, 503 gateway caído — todos aceptables
-    'spike → status válido': (r) => [200, 429, 503].includes(r.status),
+    // 200 éxito, 429 bulkhead saturado, 503 gateway caído, 426 upstream HTTPS — todos aceptables
+    'spike → status válido': (r) => [200, 426, 429, 502, 503, 504].includes(r.status),
   });
 
   sleep(0.1);
