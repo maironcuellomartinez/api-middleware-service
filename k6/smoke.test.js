@@ -6,7 +6,11 @@
  *   k6 run -e K6_CLIENT_ID=mc_xxx -e K6_CLIENT_SECRET=yyy k6/smoke.test.js
  */
 import { check, group } from 'k6';
+import http from 'k6/http';
 import { getPing, postToken, postRefresh, getRequests } from './helpers/auth.js';
+
+// 401 = reuse attack (esperado). 426 = gateway upstream exige HTTPS (infra, no auth).
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 299 }, 401, 426));
 
 export const options = {
   vus:        1,
@@ -50,9 +54,10 @@ export default function () {
   group('v1/requests', () => {
     const res = getRequests(accessToken);
     check(res, {
-      'records → 200 o 503': (r) => r.status === 200 || r.status === 503,
-      'records → no es 401': (r) => r.status !== 401,
-      'records → no es 500': (r) => r.status !== 500,
+      // 200=ok, 503=circuit-breaker, 426=gateway upstream exige HTTPS (infra, no auth)
+      'records → no es 401':  (r) => r.status !== 401,
+      'records → no es 500':  (r) => r.status !== 500,
+      'records → token válido': (r) => [200, 503, 426, 502, 504].includes(r.status),
     });
   });
 

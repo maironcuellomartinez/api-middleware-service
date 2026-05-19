@@ -13,8 +13,11 @@
  *   k6 run -e K6_CLIENT_ID=mc_xxx -e K6_CLIENT_SECRET=yyy k6/stress.test.js
  */
 import { check, sleep } from 'k6';
+import http from 'k6/http';
 import { Counter } from 'k6/metrics';
 import { postToken, postRefresh, getRequests } from './helpers/auth.js';
+
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 299 }, 401, 426, 429));
 
 // Contadores para validar comportamiento esperado de resiliencia
 const bulkheadRejections = new Counter('bulkhead_rejections');

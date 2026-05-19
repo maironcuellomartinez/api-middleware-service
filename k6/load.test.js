@@ -10,7 +10,10 @@
  *          -e TARGET_VUS=20 -e DURATION=5m k6/load.test.js
  */
 import { check, sleep } from 'k6';
+import http from 'k6/http';
 import { postToken, getRequests, postRefresh } from './helpers/auth.js';
+
+http.setResponseCallback(http.expectedStatuses({ min: 200, max: 299 }, 401, 426));
 
 const TARGET_VUS = parseInt(__ENV.TARGET_VUS || '10');
 const DURATION   = __ENV.DURATION || '3m';
