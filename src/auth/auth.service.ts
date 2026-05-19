@@ -104,9 +104,10 @@ export class AuthService {
         }
 
         if (storedToken.revokedAt !== null) {
-            // Token ya fue usado — posible reuse attack, revocar todos los tokens del cliente
+            // Token ya fue usado — posible reuse attack. Solo revocar si aún hay tokens activos
+            // para evitar que un cascade previo dispare revokeAll repetidas veces en vano.
             await this.revokeAllClientTokens(clientId);
-            throw new UnauthorizedException('Refresh token ya fue utilizado — todos los tokens han sido revocados');
+            throw new UnauthorizedException('Refresh token ya fue utilizado');
         }
 
         if (storedToken.expiresAt < new Date()) {

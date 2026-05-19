@@ -71,13 +71,24 @@ export default function () {
   // ── Refresh periódico (cada REFRESH_EVERY requests) ──────────────────────
   if (vRequestCount % REFRESH_EVERY === 0 && vRefreshToken) {
     const refreshRes = postRefresh(vRefreshToken);
-    const refreshOk = check(refreshRes, {
+    const newAccessToken  = refreshRes.json('access_token');
+    const newRefreshToken = refreshRes.json('refresh_token');
+    const refreshSuccess  = (refreshRes.status === 200 || refreshRes.status === 201)
+                            && !!newAccessToken && !!newRefreshToken;
+
+    check(refreshRes, {
       'refresh → ok':          (r) => r.status === 200 || r.status === 201,
-      'refresh → nuevo token': (r) => !!r.json('access_token'),
+      'refresh → nuevo token': () => !!newAccessToken,
     });
-    if (refreshOk) {
-      vToken        = refreshRes.json('access_token');
-      vRefreshToken = refreshRes.json('refresh_token');
+
+    if (refreshSuccess) {
+      vToken        = newAccessToken;
+      vRefreshToken = newRefreshToken;
+    } else {
+      // Error o body inválido — forzar re-autenticación para no reutilizar
+      // el token ya revocado server-side (evita disparar reuse cascade).
+      vToken        = null;
+      vRefreshToken = null;
     }
   }
 
