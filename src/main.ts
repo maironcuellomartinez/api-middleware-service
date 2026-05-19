@@ -22,9 +22,10 @@ async function bootstrap() {
     // Rendimiento: compression gzip para respuestas
     app.use(compression());
 
-    // CORS: origenes explicitos en development, restringido a CORS_ALLOWED_ORIGINS en staging/production
+    // CORS: en development usa CORS_DEV_ORIGINS o el fallback local; en prod usa CORS_ALLOWED_ORIGINS
     const corsOrigins = env === 'development'
-        ? ['http://localhost:5173', 'http://localhost:3000']
+        ? (process.env.CORS_DEV_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean)
+            ?? ['http://localhost:5173', 'http://localhost:3000'])
         : process.env.CORS_ALLOWED_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean) ?? [];
     app.enableCors({ origin: corsOrigins, credentials: true });
 

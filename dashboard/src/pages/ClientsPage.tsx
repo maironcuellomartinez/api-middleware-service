@@ -409,6 +409,7 @@ function CreateClientForm({
   const [name, setName]               = useState('');
   const [description, setDescription] = useState('');
   const [scopesInput, setScopesInput] = useState('');
+  const [tokenExpiry, setTokenExpiry] = useState(3600);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -421,6 +422,7 @@ function CreateClientForm({
       clientName: name.trim(),
       description: description.trim() || undefined,
       scopes: scopes.length > 0 ? scopes : undefined,
+      tokenExpiresInSeconds: tokenExpiry,
     });
   };
 
@@ -446,6 +448,21 @@ function CreateClientForm({
           className="resize-none"
           rows={3}
         />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="tokenExpiry">Expiración del token (segundos)</Label>
+        <Input
+          id="tokenExpiry"
+          type="number"
+          min={3600}
+          max={604800}
+          step={3600}
+          value={tokenExpiry}
+          onChange={(e) => setTokenExpiry(Number(e.target.value))}
+        />
+        <p className="text-xs text-muted-foreground">
+          Mín. 3600 (1h) — Máx. 604800 (7 días). Default: 3600.
+        </p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="scopes">Scopes permitidos</Label>

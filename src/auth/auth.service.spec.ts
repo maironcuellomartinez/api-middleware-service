@@ -326,13 +326,14 @@ describe('AuthService', () => {
         };
 
         const mockStoredToken: RefreshTokenEntity = {
-            id:        1,
-            clientId:  'mc_abc123',
-            tokenHash: '$2a$10$storedhash',
-            jtiHash:   'sha256-of-uuid-jti',
-            expiresAt: new Date(Date.now() + 3600 * 1000), // 1 hora en el futuro
-            revokedAt: null,
-            createdAt: new Date(),
+            id:            1,
+            clientId:      'mc_abc123',
+            tokenHash:     '$2a$10$storedhash',
+            jtiHash:       'sha256-of-uuid-jti',
+            expiresAt:     new Date(Date.now() + 3600 * 1000),
+            revokedAt:     null,
+            createdAt:     new Date(),
+            grantedScopes: null,
         };
 
         beforeEach(() => {

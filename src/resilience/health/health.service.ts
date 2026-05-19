@@ -23,19 +23,18 @@ export class HealthService {
     ) { }
 
     async getStatus() {
-        // gateway y bulkhead se calculan siempre — independientemente de si terminus falla
         const gateway = this.safeCall(() => this.gateway.getStatus(), 'GatewayClient no disponible');
         const bulkhead = this.safeCall(() => this.bulkhead.getStats(), 'Bulkhead no disponible');
 
-        // terminus puede lanzar HealthCheckError si algun check falla;
-        // lo atrapamos para que el endpoint siempre devuelva gateway y bulkhead
+        const diskPath = process.platform === 'win32' ? 'C:\\' : '/';
+
         let terminusResult: Record<string, unknown> = {};
         try {
             terminusResult = await this.health.check([
                 () => this.db.pingCheck('database', { timeout: 1000 }),
                 () => this.memory.checkHeap('memory_heap', 200 * 1024 * 1024),
                 () => this.memory.checkRSS('memory_rss', 300 * 1024 * 1024),
-                () => this.disk.checkStorage('disk_storage', { thresholdPercent: 0.9, path: '/' }),
+                () => this.disk.checkStorage('disk_storage', { thresholdPercent: 0.9, path: diskPath }),
             ]) as Record<string, unknown>;
         } catch (err: any) {
             terminusResult = err?.response ?? { status: 'error', error: String(err?.message ?? err) };

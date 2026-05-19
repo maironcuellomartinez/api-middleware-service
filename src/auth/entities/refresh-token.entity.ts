@@ -24,6 +24,10 @@ export class RefreshTokenEntity {
     @Column({ type: 'varchar', length: 64, nullable: true })
     jtiHash!: string | null;
 
+    /** Scopes otorgados en la emisión original, preservados en rotaciones */
+    @Column({ type: 'simple-json', nullable: true })
+    grantedScopes!: string[] | null;
+
     @Column({ type: 'datetime' })
     expiresAt!: Date;
 

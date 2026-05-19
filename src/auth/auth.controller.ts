@@ -1,13 +1,13 @@
 import {
-    Controller, Post, Body, Req, HttpCode, HttpStatus,
-    UseGuards, UnauthorizedException, Headers,
+    Controller, Post, Body, HttpCode, HttpStatus,
+    UseInterceptors, UnauthorizedException, Headers,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBasicAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { TokenRequestDto, TokenResponseDto } from './dto/token-request.dto';
 import { RefreshTokenRequestDto, RefreshTokenResponseDto } from './dto/refresh-token.dto';
-import { OAuthBulkheadGuard } from './guards/oauth-bulkhead.guard';
+import { OAuthBulkheadInterceptor } from './interceptors/oauth-bulkhead.interceptor';
 
 @ApiTags('Auth')
 @Controller('oauth')
@@ -17,7 +17,7 @@ export class AuthController {
     @Post('token')
     @Throttle({ default: { limit: 10, ttl: 60000 } })
     @HttpCode(HttpStatus.OK)
-    @UseGuards(OAuthBulkheadGuard)
+    @UseInterceptors(OAuthBulkheadInterceptor)
     @ApiBasicAuth()
     @ApiOperation({ summary: 'Obtener access token (OAuth2 client_credentials)' })
     @ApiResponse({ status: 200, description: 'Token JWT emitido', type: TokenResponseDto })

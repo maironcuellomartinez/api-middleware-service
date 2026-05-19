@@ -45,8 +45,13 @@ export default function OAuthTokenPanel() {
       setAccessToken(res.access_token);
       setTokenInfo({ accessToken: res.access_token, expiresIn: res.expires_in });
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : 'Failed to fetch token';
+      let msg = 'Failed to fetch token';
+      if (err && typeof err === 'object' && 'response' in err) {
+        const data = (err as { response?: { data?: Record<string, unknown> } }).response?.data;
+        msg = (data?.error_description ?? data?.error ?? data?.message ?? msg) as string;
+      } else if (err instanceof Error) {
+        msg = err.message;
+      }
       setError(msg);
     } finally {
       setLoading(false);

@@ -1,6 +1,7 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
+import { JWT_ADMIN_SERVICE } from '../../auth/guards/admin-or-access.guard';
 
 const COOKIE_NAME = 'admin_session';
 
@@ -11,7 +12,7 @@ const COOKIE_NAME = 'admin_session';
  */
 @Injectable()
 export class AdminSessionGuard implements CanActivate {
-    constructor(private readonly jwtService: JwtService) { }
+    constructor(@Inject(JWT_ADMIN_SERVICE) private readonly jwtService: JwtService) { }
 
     canActivate(ctx: ExecutionContext): boolean {
         const request = ctx.switchToHttp().getRequest<Request>();

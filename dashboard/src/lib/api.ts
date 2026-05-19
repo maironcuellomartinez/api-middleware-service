@@ -93,6 +93,7 @@ export interface CreateClientPayload {
   clientName: string;
   description?: string;
   scopes?: string[];
+  tokenExpiresInSeconds?: number;
 }
 
 export interface CreateClientResult {
@@ -173,6 +174,7 @@ export async function createClient(payload: CreateClientPayload): Promise<Create
     name: payload.clientName,
     description: payload.description,
     scopes: payload.scopes && payload.scopes.length > 0 ? payload.scopes : undefined,
+    tokenExpiresInSeconds: payload.tokenExpiresInSeconds,
   });
   return data;
 }

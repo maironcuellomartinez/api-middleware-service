@@ -4,7 +4,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { TokenRequestDto, TokenResponseDto } from './dto/token-request.dto';
 import { RefreshTokenRequestDto, RefreshTokenResponseDto } from './dto/refresh-token.dto';
-import { OAuthBulkheadGuard } from './guards/oauth-bulkhead.guard';
+import { OAuthBulkheadInterceptor } from './interceptors/oauth-bulkhead.interceptor';
 
 describe('AuthController', () => {
     let controller: AuthController;
@@ -38,8 +38,8 @@ describe('AuthController', () => {
                 { provide: AuthService, useValue: authService },
             ],
         })
-            .overrideGuard(OAuthBulkheadGuard)
-            .useValue({ canActivate: jest.fn().mockReturnValue(true) })
+            .overrideInterceptor(OAuthBulkheadInterceptor)
+            .useValue({ intercept: (_ctx: any, next: any) => next.handle() })
             .compile();
 
         controller = module.get<AuthController>(AuthController);

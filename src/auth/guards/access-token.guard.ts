@@ -22,7 +22,11 @@ export class AccessTokenGuard implements CanActivate {
         const secret = this.config.get<string>('jwt.secret')!;
 
         try {
-            const payload = this.jwt.verify(token, { secret }) as any;
+            const payload = this.jwt.verify(token, {
+                secret,
+                issuer: 'api-middleware-service',
+                audience: 'external-clients',
+            }) as any;
             if (payload.type !== 'external_client') {
                 throw new UnauthorizedException('Token no pertenece a una aplicación externa');
             }

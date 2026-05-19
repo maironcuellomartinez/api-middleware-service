@@ -1,16 +1,21 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { ExternalClientEntity } from './entities/external-client.entity';
+import { RefreshTokenEntity } from '../auth/entities/refresh-token.entity';
 import { CreateClientDto, ClientCredentialsResponseDto, ClientResponseDto } from './dto/create-client.dto';
 import { ListClientsDto, PaginatedClientsDto } from './dto/list-clients.dto';
+
+// Dummy hash para bcrypt timing attack mitigation en validateCredentials
+const DUMMY_BCRYPT_HASH = '$2b$10$dummy.hash.prevents.timing.enumeration.of.client.ids0000';
 
 @Injectable()
 export class ClientsService {
     constructor(
         @InjectRepository(ExternalClientEntity) private readonly repo: Repository<ExternalClientEntity>,
+        @InjectRepository(RefreshTokenEntity) private readonly tokenRepo: Repository<RefreshTokenEntity>,
     ) { }
 
     /**
@@ -152,6 +157,11 @@ export class ClientsService {
         if (!entity) throw new NotFoundException(`Client ${clientId} no encontrado`);
         entity.isActive = false;
         await this.repo.save(entity);
+        // Revocar refresh tokens activos para que no puedan seguir rotando
+        await this.tokenRepo.update(
+            { clientId, revokedAt: IsNull() },
+            { revokedAt: new Date() },
+        );
     }
 
     /**
@@ -186,6 +196,11 @@ export class ClientsService {
     async remove(clientId: string): Promise<void> {
         const result = await this.repo.delete({ clientId });
         if (result.affected === 0) throw new NotFoundException(`Client ${clientId} no encontrado`);
+        // Revocar refresh tokens activos para que no queden tokens válidos huérfanos
+        await this.tokenRepo.update(
+            { clientId, revokedAt: IsNull() },
+            { revokedAt: new Date() },
+        );
     }
 
     /**
@@ -201,7 +216,11 @@ export class ClientsService {
      */
     async validateCredentials(clientId: string, clientSecret: string): Promise<ExternalClientEntity | null> {
         const entity = await this.repo.findOneBy({ clientId, isActive: true });
-        if (!entity) return null;
+        if (!entity) {
+            // Bcrypt dummy para que el tiempo de respuesta no permita enumerar clientIds válidos
+            await bcrypt.compare(clientSecret, DUMMY_BCRYPT_HASH);
+            return null;
+        }
         const valid = await bcrypt.compare(clientSecret, entity.clientSecretHash);
         return valid ? entity : null;
     }

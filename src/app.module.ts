@@ -8,7 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { ClientsModule } from './clients/clients.module';
 import { RecordsModule } from './records/records.module';
 import { GatewayModule } from './gateway/gateway.module';
-import { HealthModule } from './recilience/health/health.module';
+import { HealthModule } from './resilience/health/health.module';
 import { AdminModule } from './admin/admin.module';
 import { BulkheadModule, HttpBulkheadMiddleware } from '@backendkit-labs/bulkhead/nestjs';
 import { HttpLoggerMiddleware } from './common/http-logger.middleware';
@@ -28,7 +28,7 @@ import configuration from './config/configuration';
         ConfigModule.forRoot({
             isGlobal: true,
             load: [configuration],
-            envFilePath: ['.env.development', '.env'],
+            // main.ts ya carga .env.${NODE_ENV} con dotenv antes de que NestJS inicie
         }),
         TypeOrmModule.forRootAsync({
             inject: [ConfigService],
@@ -40,7 +40,8 @@ import configuration from './config/configuration';
                 password: config.get<string>('db.password')!,
                 database: config.get<string>('db.database')!,
                 entities: [ExternalClientEntity, AdminEntity, RefreshTokenEntity],
-                synchronize: config.get<string>('app.env') === 'development',
+                // Controlado por SYNCHRONIZE_DATABASE=true en .env (nunca true en prod)
+                synchronize: config.get<boolean>('db.synchronize') ?? false,
             }),
         }),
         BulkheadModule,

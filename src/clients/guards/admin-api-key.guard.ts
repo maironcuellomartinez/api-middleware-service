@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
+import * as crypto from 'crypto';
 
 /**
  * Guard para endpoints administrativos (/clients).
@@ -20,7 +21,16 @@ export class AdminApiKeyGuard implements CanActivate {
         const request = ctx.switchToHttp().getRequest<Request>();
         const provided = request.headers['x-admin-api-key'] as string | undefined;
 
-        if (!provided || provided !== expected) {
+        if (!provided) {
+            throw new ForbiddenException('API key de administración inválida');
+        }
+
+        const expectedBuf = Buffer.from(expected);
+        const providedBuf = Buffer.from(provided);
+        const valid = expectedBuf.length === providedBuf.length &&
+            crypto.timingSafeEqual(expectedBuf, providedBuf);
+
+        if (!valid) {
             throw new ForbiddenException('API key de administración inválida');
         }
 

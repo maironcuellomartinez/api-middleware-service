@@ -6,7 +6,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { TokenCleanupJob } from './token-cleanup.job';
 import { AccessTokenGuard } from './guards/access-token.guard';
-import { OAuthBulkheadGuard } from './guards/oauth-bulkhead.guard';
+import { OAuthBulkheadInterceptor } from './interceptors/oauth-bulkhead.interceptor';
 import { AdminOrAccessGuard, JWT_AUTH_SERVICE } from './guards/admin-or-access.guard';
 import { RefreshTokenEntity } from './entities/refresh-token.entity';
 import { ClientsModule } from '../clients/clients.module';
@@ -33,7 +33,7 @@ import { AdminModule } from '../admin/admin.module';
         AuthService,
         TokenCleanupJob,
         AccessTokenGuard,
-        OAuthBulkheadGuard,
+        OAuthBulkheadInterceptor,
         AdminOrAccessGuard,
         {
             provide: JWT_AUTH_SERVICE,

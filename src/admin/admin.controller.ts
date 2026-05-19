@@ -13,7 +13,7 @@ export class AdminController {
     constructor(private readonly adminService: AdminService) {}
 
     @Get('setup-required')
-    @SkipThrottle()
+    @Throttle({ default: { limit: 3, ttl: 60000 } })
     @ApiOperation({ summary: 'Verificar si se necesita configurar el administrador inicial' })
     @ApiResponse({ status: 200, description: 'Retorna si hace falta configurar el primer admin' })
     async setupRequired(): Promise<{ setupRequired: boolean }> {
@@ -22,7 +22,7 @@ export class AdminController {
     }
 
     @Post('setup')
-    @SkipThrottle()
+    @Throttle({ default: { limit: 3, ttl: 60000 } })
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Crear el primer administrador (solo si no existe ninguno)' })
     @ApiBody({ type: SetupDto })
