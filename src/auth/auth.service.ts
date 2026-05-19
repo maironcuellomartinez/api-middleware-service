@@ -58,6 +58,7 @@ export class AuthService {
         }
 
         const payload: Record<string, any> = {
+            jti: crypto.randomUUID(),
             sub: client.clientId,
             type: 'external_client',
             clientName: client.name,
@@ -126,6 +127,7 @@ export class AuthService {
         const grantedScopes = storedToken.grantedScopes ?? undefined;
 
         const accessPayload: Record<string, any> = {
+            jti: crypto.randomUUID(),
             sub: client.clientId,
             type: 'external_client',
             clientName: client.name,
