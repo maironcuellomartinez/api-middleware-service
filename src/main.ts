@@ -16,11 +16,34 @@ async function bootstrap() {
     const app = await NestFactory.create(AppModule);
     const logger = new Logger('Bootstrap');
 
+    // En staging/prod Apache termina TLS y reenvía HTTP a localhost:3007.
+    // "trust proxy" permite leer X-Forwarded-Proto / X-Real-IP correctamente.
+    if (env !== 'development') {
+        app.getHttpAdapter().getInstance().set('trust proxy', 1);
+    }
+
     // Seguridad: helmet protege contra vulnerabilidades HTTP comunes
     app.use(helmet());
 
     // Rendimiento: compression gzip para respuestas
     app.use(compression());
+
+    // Rechazar requests que no vengan por HTTPS en staging/prod.
+    // Apache inyecta X-Forwarded-Proto: https — si no está presente o es http,
+    // alguien está accediendo directamente al puerto 3007 sin pasar por TLS.
+    if (env !== 'development') {
+        app.use((req: any, res: any, next: () => void) => {
+            const proto = req.headers['x-forwarded-proto'];
+            if (proto !== 'https') {
+                return res.status(426).json({
+                    statusCode: 426,
+                    error: 'Upgrade Required',
+                    message: 'Se requiere HTTPS. Conectate a través del proxy seguro.',
+                });
+            }
+            next();
+        });
+    }
 
     // CORS: en development usa CORS_DEV_ORIGINS o el fallback local; en prod usa CORS_ALLOWED_ORIGINS
     const corsOrigins = env === 'development'
