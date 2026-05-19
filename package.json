@@ -8,6 +8,13 @@
     "start:staging": "cross-env NODE_ENV=staging npm run build && cross-env NODE_ENV=staging node dist/main",
     "start:prod": "cross-env NODE_ENV=production npm run build && cross-env NODE_ENV=production node dist/main",
     "start:debug": "cross-env NODE_ENV=development nest start --debug --watch",
+    "pm2:start:staging": "npm run build && pm2 start ecosystem.config.js --env staging",
+    "pm2:start:prod": "npm run build && pm2 start ecosystem.config.js --env production",
+    "pm2:reload": "pm2 reload ecosystem.config.js",
+    "pm2:stop": "pm2 stop ecosystem.config.js",
+    "pm2:delete": "pm2 delete ecosystem.config.js",
+    "pm2:logs": "pm2 logs",
+    "pm2:status": "pm2 status",
     "test": "jest",
     "test:cov": "jest --coverage",
     "test:e2e": "jest --config test/jest-e2e.json"
