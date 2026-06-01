@@ -18,12 +18,16 @@ export class GatewayClient {
     private readonly baseUrl: string;
     private readonly headers: Record<string, string>;
 
+    private readonly issuesBaseUrl: string;
+    private readonly issuesHeaders: Record<string, string>;
+
     /** Alta prioridad: by-number lookups (consultas puntuales) */
     private readonly highPriority: PQueue;
     /** Baja prioridad: list queries con filtros (potencialmente costosas) */
     private readonly lowPriority: PQueue;
 
     private readonly breaker: CircuitBreaker;
+    private readonly issuesBreaker: CircuitBreaker;
 
     constructor(
         private readonly http: HttpService,
@@ -33,10 +37,16 @@ export class GatewayClient {
         const m2mToken = this.config.get<string>('gateway.m2mToken') ?? '';
         this.headers = { 'Authorization': `Bearer ${m2mToken}`, 'Content-Type': 'application/json' };
 
+        this.issuesBaseUrl = this.config.get<string>('extIssues.url') ?? 'http://localhost:3003';
+        const issuesToken  = this.config.get<string>('extIssues.token') ?? '';
+        this.issuesHeaders = { 'Authorization': `Bearer ${issuesToken}`, 'Content-Type': 'application/json' };
+
         this.highPriority = new PQueue({ concurrency: 10 });
         this.lowPriority = new PQueue({ concurrency: 5 });
 
-        this.breaker = new CircuitBreakerRegistry().getOrCreate({
+        const registry = new CircuitBreakerRegistry();
+
+        this.breaker = registry.getOrCreate({
             name: 'api-gateway',
             failureThreshold: 50,
             minimumCalls: 5,
@@ -50,6 +60,23 @@ export class GatewayClient {
                     this.logger.log('Circuit breaker HALF-OPEN — probando api-gateway');
                 else
                     this.logger.log('Circuit breaker CLOSED — api-gateway disponible');
+            },
+        });
+
+        this.issuesBreaker = registry.getOrCreate({
+            name: 'ext-issues',
+            failureThreshold: 50,
+            minimumCalls: 5,
+            slidingWindowSize: 10,
+            openTimeoutMs: 30000,
+            isFailure: isHttpServerError,
+            onStateChange: (_from, to) => {
+                if (to === CircuitBreakerState.OPEN)
+                    this.logger.warn('Circuit breaker OPEN — ext-issues no disponible');
+                else if (to === CircuitBreakerState.HALF_OPEN)
+                    this.logger.log('Circuit breaker HALF-OPEN — probando ext-issues');
+                else
+                    this.logger.log('Circuit breaker CLOSED — ext-issues disponible');
             },
         });
     }
@@ -74,11 +101,25 @@ export class GatewayClient {
         );
     }
 
+    getIssues(params: Record<string, string>): Promise<unknown> {
+        return this.lowPriority.add(() =>
+            this.issuesBreaker.execute(
+                () => this._httpGet(`${this.issuesBaseUrl}/api/ext/issues`, params, this.issuesHeaders),
+                (err) => {
+                    if (err instanceof CircuitBreakerOpenError)
+                        throw new ServiceUnavailableException('ext-issues no disponible (circuit open)');
+                    throw err;
+                },
+            ),
+        );
+    }
+
     // ── Métricas del estado de resiliencia ────────────────────────────────────
 
     getStatus() {
         return {
             circuitBreaker: this.breaker.getMetrics(),
+            issuesCircuitBreaker: this.issuesBreaker.getMetrics(),
             bulkhead: {
                 high: { pending: this.highPriority.pending, size: this.highPriority.size, concurrency: 10 },
                 low: { pending: this.lowPriority.pending, size: this.lowPriority.size, concurrency: 5 },
@@ -88,10 +129,10 @@ export class GatewayClient {
 
     // ── Método interno (envuelto por el circuit breaker) ─────────────────────
 
-    private async _httpGet(url: string, params?: Record<string, string>): Promise<unknown> {
+    private async _httpGet(url: string, params?: Record<string, string>, headers?: Record<string, string>): Promise<unknown> {
         try {
             const response = await firstValueFrom(
-                this.http.get(url, { params, headers: this.headers, timeout: 5000 }),
+                this.http.get(url, { params, headers: headers ?? this.headers, timeout: 5000 }),
             );
             return response.data;
         } catch (err) {

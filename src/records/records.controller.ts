@@ -2,6 +2,7 @@ import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { RecordsService } from './records.service';
 import { ListRequestsDto } from './dto/list-records.dto';
+import { ListIssuesDto } from './dto/list-issues.dto';
 import { AdminOrAccessGuard } from '../auth/guards/admin-or-access.guard';
 
 @ApiTags('Records')
@@ -24,6 +25,13 @@ export class RecordsController {
     @ApiResponse({ status: 200 })
     listRequests(@Query() query: ListRequestsDto) {
         return this.service.listRequests(query);
+    }
+
+    @Get('issues')
+    @ApiOperation({ summary: 'Listar issues desde el sistema externo' })
+    @ApiResponse({ status: 200 })
+    listIssues(@Query() query: ListIssuesDto) {
+        return this.service.getIssues(query);
     }
 
     // Estado de resiliencia disponible en GET /health/status (sin auth, para monitoreo)

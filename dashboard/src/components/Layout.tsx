@@ -1,46 +1,29 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  KeyRound,
+  ClipboardList,
+  FileSearch,
+  HeartPulse,
+  ChevronLeft,
+  ChevronRight,
+  Sun,
+  Moon,
+  LogOut,
+  type LucideIcon,
+} from 'lucide-react';
 import { logoutAdmin } from '../lib/api';
 import OAuthTokenPanel from './OAuthTokenPanel';
 import { useTheme } from '../hooks/useTheme';
 
-const navItems = [
-  { to: '/', label: 'Dashboard', icon: 'grid' },
-  { to: '/clients', label: 'Clients', icon: 'key' },
-  { to: '/records', label: 'Records', icon: 'list' },
-  { to: '/health', label: 'Health', icon: 'heart' },
-] as const;
-
-function NavIcon({ icon, className }: { icon: string; className?: string }) {
-  switch (icon) {
-    case 'grid':
-      return (
-        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
-        </svg>
-      );
-    case 'key':
-      return (
-        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-        </svg>
-      );
-    case 'list':
-      return (
-        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-        </svg>
-      );
-    case 'heart':
-      return (
-        <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-        </svg>
-      );
-    default:
-      return null;
-  }
-}
+const navItems: { to: string; label: string; icon: LucideIcon; exact?: boolean }[] = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
+  { to: '/clients', label: 'Clients', icon: KeyRound },
+  { to: '/records', label: 'Records', icon: ClipboardList },
+  { to: '/issues', label: 'Issues', icon: FileSearch },
+  { to: '/health', label: 'Health', icon: HeartPulse },
+];
 
 export default function Layout() {
   const [expanded, setExpanded] = useState(false);
@@ -60,55 +43,51 @@ export default function Layout() {
     <div className="flex h-screen bg-background">
       {/* Sidebar fijo colapsable */}
       <aside
-        className={`fixed left-0 top-0 h-full z-30 flex flex-col bg-black text-white transition-all duration-300 ${
+        className={`fixed left-0 top-0 h-full z-30 flex flex-col bg-gray-900 text-white transition-all duration-300 ${
           expanded ? 'w-64' : 'w-16'
         }`}
       >
-        {/* Toggle button */}
-        <div className="flex items-center justify-end h-16 px-2">
+        {/* Header con título + toggle */}
+        <div className={`flex items-center h-16 px-2 mb-1 ${expanded ? 'justify-between px-4' : 'justify-center'}`}>
+          {expanded && (
+            <div>
+              <h1 className="text-sm font-bold leading-tight">API Middleware</h1>
+              <p className="text-xs text-gray-400">OAuth2 Admin</p>
+            </div>
+          )}
           <button
             onClick={() => setExpanded((prev) => !prev)}
-            className="p-2 text-white/70 hover:text-white rounded-md hover:bg-white/10 transition-colors"
-            title={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+            className="p-1 rounded hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
+            title={expanded ? 'Colapsar' : 'Expandir'}
           >
-            {expanded ? (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-              </svg>
-            ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-              </svg>
-            )}
+            {expanded
+              ? <ChevronLeft className="h-5 w-5" />
+              : <ChevronRight className="h-5 w-5" />
+            }
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-2 space-y-1 overflow-y-auto">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-white/20 text-white'
-                    : 'text-white/70 hover:bg-white/10 hover:text-white'
-                }`
-              }
-              title={!expanded ? item.label : undefined}
-            >
-              <NavIcon icon={item.icon} className="w-5 h-5 shrink-0" />
-              <span
-                className={`transition-opacity duration-200 ${
-                  expanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'
-                }`}
+        <nav className="flex-1 px-2 space-y-0.5 overflow-y-auto">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.exact ?? false}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 py-2 px-3 rounded transition duration-150 hover:bg-gray-700 ${
+                    isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'
+                  } ${!expanded ? 'justify-center' : ''}`
+                }
+                title={!expanded ? item.label : undefined}
               >
-                {item.label}
-              </span>
-            </NavLink>
-          ))}
+                <Icon className="h-4 w-4 shrink-0" />
+                {expanded && <span className="text-sm truncate">{item.label}</span>}
+              </NavLink>
+            );
+          })}
         </nav>
 
         {/* OAuthTokenPanel — visible solo cuando expandido */}
@@ -137,24 +116,14 @@ export default function Layout() {
               className="p-2 text-muted-foreground rounded-md hover:bg-accent hover:text-foreground transition-colors"
               title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
             >
-              {theme === 'dark' ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M18.364 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
+              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </button>
             <button
               onClick={handleLogout}
               className="p-2 text-muted-foreground rounded-md hover:bg-accent hover:text-foreground transition-colors"
-              title="Logout"
+              title="Cerrar sesión"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
+              <LogOut className="h-5 w-5" />
             </button>
           </div>
         </header>

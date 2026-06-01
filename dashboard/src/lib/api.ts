@@ -129,10 +129,11 @@ export interface GatewayStatus {
 }
 
 export interface HttpBulkheadStats {
-  active: number;
-  queued: number;
-  concurrency: number;
+  activeCalls: number;
+  queuedCalls: number;
+  maxConcurrentCalls: number;
   maxQueueSize: number;
+  totalCalls: number;
 }
 
 export interface HealthStatusResponse {
@@ -210,4 +211,25 @@ export async function fetchRecords(params?: Record<string, unknown>): Promise<un
 export async function fetchRecordByNumber(number: string): Promise<unknown> {
   const { data } = await api.get('/v1/requests/' + number);
   return data;
+}
+
+export interface Issue {
+  id?: string | number;
+  serviceNowId?: string;
+  serviceNowTaskNumber?: string;
+  serviceNowTaskId?: string;
+  tipology?: string;
+  descripcion?: string;
+  customerUser?: string;
+  startDate?: string;
+  endDate?: string;
+  [key: string]: unknown;
+}
+
+export async function fetchIssues(params?: Record<string, string>): Promise<Issue[]> {
+  const { data } = await api.get('/v1/issues', { params });
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.items)) return data.items;
+  return [];
 }

@@ -53,6 +53,10 @@ export default () => {
             url:      process.env.API_GATEWAY_URL ?? 'http://localhost:3000',
             m2mToken: process.env.ABAC_M2M_TOKEN ?? 'dev-only--replace-in-staging-and-production',
         },
+        extIssues: {
+            url:   process.env.EXT_ISSUES_URL   ?? 'http://localhost:3003',
+            token: process.env.EXT_ISSUES_TOKEN ?? '',
+        },
         bulkhead: {
             http: {
                 concurrency:  parseInt(process.env.HTTP_BULKHEAD_CONCURRENCY ?? '50', 10),

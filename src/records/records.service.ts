@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { GatewayClient } from '../gateway/gateway.client';
 import { ListRequestsDto } from './dto/list-records.dto';
+import { ListIssuesDto } from './dto/list-issues.dto';
 
 @Injectable()
 export class RecordsService {
@@ -22,6 +23,20 @@ export class RecordsService {
         if (query.limit)       params.limit       = String(query.limit);
 
         return this.gateway.listRequests(params);
+    }
+
+    getIssues(query: ListIssuesDto) {
+        const params: Record<string, string> = {};
+        if (query.startDate)          params.startDate          = query.startDate;
+        if (query.endDate)            params.endDate            = query.endDate;
+        if (query.serviceNowId)       params.serviceNowId       = query.serviceNowId;
+        if (query.serviceNowTaskNumber) params.serviceNowTaskNumber = query.serviceNowTaskNumber;
+        if (query.serviceNowTaskId)   params.serviceNowTaskId   = query.serviceNowTaskId;
+        if (query.tipology)           params.tipology           = query.tipology;
+        if (query.descripcion)        params.descripcion        = query.descripcion;
+        if (query.customerUser)       params.customerUser       = query.customerUser;
+
+        return this.gateway.getIssues(params);
     }
 
     getResilienceStatus() {
