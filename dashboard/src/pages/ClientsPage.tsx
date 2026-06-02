@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   fetchClients,
   createClient,
@@ -411,19 +411,17 @@ function CreateClientForm({
   const [scopesInput, setScopesInput] = useState('');
   const [tokenExpiry, setTokenExpiry] = useState(3600);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     const scopes = scopesInput
       .split(/[\s,]+/)
       .map((s) => s.trim())
       .filter(Boolean);
-    onSubmit({
-      clientName: name.trim(),
-      description: description.trim() || undefined,
-      scopes: scopes.length > 0 ? scopes : undefined,
-      tokenExpiresInSeconds: tokenExpiry,
-    });
+    const payload: CreateClientPayload = { clientName: name.trim(), tokenExpiresInSeconds: tokenExpiry };
+    if (description.trim()) payload.description = description.trim();
+    if (scopes.length > 0) payload.scopes = scopes;
+    onSubmit(payload);
   };
 
   return (

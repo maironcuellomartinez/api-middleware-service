@@ -33,6 +33,4 @@ export class RecordsController {
     listIssues(@Query() query: ListIssuesDto) {
         return this.service.getIssues(query);
     }
-
-    // Estado de resiliencia disponible en GET /health/status (sin auth, para monitoreo)
 }

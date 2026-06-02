@@ -124,6 +124,18 @@ describe('RecordsService', () => {
                     slowCalls:         0,
                     notPermittedCalls: 0,
                 },
+                issuesCircuitBreaker: {
+                    name:              'ext-issues',
+                    state:             'closed' as any,
+                    failureRate:       0,
+                    slowCallRate:      0,
+                    bufferedCalls:     0,
+                    totalCalls:        0,
+                    successfulCalls:   0,
+                    failedCalls:       0,
+                    slowCalls:         0,
+                    notPermittedCalls: 0,
+                },
                 bulkhead: { high: { pending: 0, size: 0, concurrency: 10 }, low: { pending: 0, size: 0, concurrency: 5 } },
             };
             gateway.getStatus.mockReturnValue(status);
