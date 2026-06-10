@@ -42,6 +42,7 @@ import configuration from './config/configuration';
                 entities: [ExternalClientEntity, AdminEntity, RefreshTokenEntity],
                 // Controlado por SYNCHRONIZE_DATABASE=true en .env (nunca true en prod)
                 synchronize: config.get<boolean>('db.synchronize') ?? false,
+                // dropSchema: config.get<boolean>('db.dropSchema') ?? false,
             }),
         }),
         BulkheadModule,

@@ -1,508 +1,310 @@
 # api-middleware-service
 
-Proxy OAuth 2.0 para aplicaciones externas que necesitan consultar incidencias y solicitudes del ecosistema **Event Corner**.
+Proxy OAuth2 para aplicaciones externas que necesitan consultar incidencias y solicitudes de Event Corner. Emite y valida tokens JWT localmente (HS256 + MySQL) sin depender de un servidor OAuth externo.
 
-Actúa como puerta de entrada para terceros: emite tokens propios (HS256, MySQL), valida credenciales de clientes registrados y reenvía las consultas al `api-gateway` interno con un token M2M de servicio.
-
----
-
-## Tabla de contenidos
-
-- [Arquitectura](#arquitectura)
-- [Requisitos](#requisitos)
-- [Configuración](#configuración)
-- [Inicio](#inicio)
-- [API](#api)
-  - [Auth — OAuth 2.0](#auth--oauth-20)
-  - [Records — Consulta de solicitudes](#records--consulta-de-solicitudes)
-  - [Clients — Gestión de aplicaciones](#clients--gestión-de-aplicaciones)
-  - [Admin — Sesión de administración](#admin--sesión-de-administración)
-  - [Health — Estado del servicio](#health--estado-del-servicio)
-- [Resiliencia](#resiliencia)
-- [Seguridad](#seguridad)
-- [Base de datos](#base-de-datos)
-- [Tests](#tests)
+Puerto por defecto: **3007**. En staging/producción corre detrás de Apache que termina TLS.
 
 ---
 
-## Arquitectura
+## Requisitos previos
 
-```
-Aplicación externa
-    │  POST /oauth/token  (Basic Auth: clientId + clientSecret)
-    │  GET  /v1/requests  (Bearer <access_token>)
-    ▼
-api-middleware-service :3007
-    │  valida token localmente (HS256 + MySQL)
-    │  Authorization: Bearer <ABAC_M2M_TOKEN>
-    ▼
-api-gateway :3000  (/internal-api/*)
-    ▼
-monolith :3001
+- Node.js >= 18
+- MySQL 8 con la base de datos `middleware_db` creada
+- `api-gateway` corriendo y accesible (para proxear las consultas)
+- PM2 instalado globalmente para staging/producción
+
+```sql
+CREATE DATABASE IF NOT EXISTS middleware_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-El servicio **no** llama a ningún servidor de introspección externo (RFC 7662). Los tokens se emiten y validan completamente de forma local.
-
 ---
 
-## Requisitos
+## Despliegue por entorno
 
-- Node.js 20+
-- MySQL 8+ (base de datos `middleware_db`)
-- `api-gateway` corriendo en `:3000` (para reenvío de consultas)
-
----
-
-## Configuración
-
-El servicio carga variables de entorno desde `.env.<NODE_ENV>` **antes** de inicializar NestJS. Crear el archivo correspondiente al entorno:
-
-| Archivo | Entorno |
-|---|---|
-| `.env.development` | `npm run start:dev` |
-| `.env.staging` | `npm run start:staging` |
-| `.env.production` | `npm run start:prod` |
-
-### Variables requeridas
-
-```env
-# Base de datos
-DB_HOST=localhost
-DB_PORT=3306
-DB_USERNAME=root
-DB_PASSWORD=root
-DB_DATABASE=middleware_db
-
-# Controla TypeORM synchronize — NUNCA true en producción
-SYNCHRONIZE_DATABASE=true
-
-# JWT para access tokens de clientes externos (mín. 32 caracteres en staging/prod)
-JWT_SECRET=dev-only--replace-in-staging-and-production
-
-# JWT para cookie de sesión de admin (mín. 32 caracteres en staging/prod)
-ADMIN_SESSION_SECRET=dev-only--replace-in-staging-and-production
-
-# Token M2M para autenticarse ante el api-gateway
-ABAC_M2M_TOKEN=dev-only--replace-in-staging-and-production
-
-# URL del api-gateway interno
-API_GATEWAY_URL=http://localhost:3000
-```
-
-### Variables opcionales
-
-```env
-PORT=3007
-
-# CORS en development (default: localhost:5173 y localhost:3000)
-CORS_DEV_ORIGINS=http://localhost:5173,http://localhost:3000
-
-# CORS en staging/production (requerido en esos entornos)
-CORS_ALLOWED_ORIGINS=https://app.ejemplo.com
-
-# API key de administración para endpoints /clients (si se usa AdminApiKeyGuard)
-ADMIN_API_KEY=
-
-# Protege GET /health/status con un header x-health-token
-# Si no se configura, el endpoint es público
-HEALTH_STATUS_TOKEN=
-
-# Bulkhead HTTP global
-HTTP_BULKHEAD_CONCURRENCY=50
-HTTP_BULKHEAD_MAX_QUEUE=100
-```
-
-> **Nota:** En entornos `staging` y `production`, `requiredSecret` valida que `JWT_SECRET` y `ADMIN_SESSION_SECRET` tengan al menos 32 caracteres y no usen el prefijo `dev-only--`. El servicio no arranca si no se cumplen esas condiciones.
-
----
-
-## Inicio
+### Desarrollo
 
 ```bash
 npm install
-
-# Development (carga .env.development, hot-reload)
 npm run start:dev
-
-# Staging
-npm run start:staging
-
-# Production
-npm run start:prod
-
-# Debug
-npm run start:debug
 ```
 
-Swagger disponible en `http://localhost:3007/docs` en development y staging.
+Carga `.env.development` automáticamente. El servidor inicia en `http://localhost:3007`.  
+Swagger disponible en `http://localhost:3007/docs`.
+
+Variables con valores de fallback seguros — el servicio arranca sin configurar nada adicional.
 
 ---
 
-## API
-
-### Auth — OAuth 2.0
-
-#### `POST /oauth/token`
-
-Emite un access token y un refresh token para una aplicación registrada.
-
-**Autenticación:** HTTP Basic Auth — `clientId:clientSecret` codificado en base64.  
-El `clientId` debe comenzar con `mc_`.
-
-**Body:**
-```json
-{
-  "grant_type": "client_credentials",
-  "scope": "records:read incidents:read"
-}
-```
-
-`scope` es opcional. Si se envía, se intersecta con los `allowedScopes` del cliente. Si la intersección queda vacía se retorna `400 invalid_scope`. Si no se envía, se otorgan todos los `allowedScopes` configurados.
-
-**Respuesta exitosa:**
-```json
-{
-  "access_token": "eyJ...",
-  "refresh_token": "eyJ...",
-  "token_type": "Bearer",
-  "expires_in": 3600,
-  "client_name": "Mi App",
-  "scope": ["records:read", "incidents:read"]
-}
-```
-
-**Límites:** 10 req/min (throttle) + bulkhead de 3 bcrypt concurrentes / cola de 5.
-
----
-
-#### `POST /oauth/refresh`
-
-Rota el par de tokens. El refresh token anterior queda revocado inmediatamente.
-
-**Body:**
-```json
-{
-  "refresh_token": "eyJ..."
-}
-```
-
-**Respuesta exitosa:** igual que `/oauth/token` (sin `scope`).
-
-**Detección de reuse:** si el refresh token ya fue usado, se revocan **todos** los tokens activos del cliente y se retorna `401`.
-
-**Límites:** 5 req/min.
-
----
-
-### Records — Consulta de solicitudes
-
-Todos los endpoints requieren `Authorization: Bearer <access_token>` o cookie `admin_session` válida.
-
-#### `GET /v1/requests/:number`
-
-Obtiene una solicitud por su número (ej. `REQ0001234`).
-
-```
-GET /v1/requests/REQ0001234
-Authorization: Bearer eyJ...
-```
-
-#### `GET /v1/requests`
-
-Lista solicitudes con filtros opcionales.
-
-| Query param | Tipo | Descripción |
-|---|---|---|
-| `status` | string | Estados separados por coma (`CREATED,IN_PROGRESS`) |
-| `issueTypeId` | string | UUID del tipo de incidencia |
-| `cornerId` | string | UUID del corner |
-| `companyId` | string | UUID de la empresa |
-| `dateFrom` | string | Fecha inicio (`YYYY-MM-DD`) |
-| `dateTo` | string | Fecha fin (`YYYY-MM-DD`) |
-| `page` | number | Página (default: 1) |
-| `limit` | number | Registros por página, máx. 100 (default: 20) |
-
----
-
-### Clients — Gestión de aplicaciones
-
-Todos los endpoints requieren cookie de sesión `admin_session` activa (ver `/admin/login`).
-
-#### `POST /clients`
-
-Registra una nueva aplicación externa. Retorna `clientId` y `clientSecret` **una sola vez** — el secret no se puede recuperar.
-
-**Body:**
-```json
-{
-  "name": "Portal HR",
-  "description": "Consulta de solicitudes para empleados",
-  "tokenExpiresInSeconds": 3600,
-  "scopes": ["records:read"]
-}
-```
-
-`tokenExpiresInSeconds` mín. 3600 (1h), máx. 604800 (7 días). `scopes` es opcional; sin él, el cliente puede pedir cualquier scope.
-
-**Respuesta:**
-```json
-{
-  "clientId": "mc_a1b2c3...",
-  "clientSecret": "f4e5d6...",
-  "name": "Portal HR",
-  "message": "Guarda el clientSecret — no se puede recuperar."
-}
-```
-
-#### `GET /clients`
-
-Lista aplicaciones registradas (paginado). Params: `page`, `limit` (máx. 100).
-
-#### `GET /clients/:clientId`
-
-Detalle de una aplicación.
-
-#### `PATCH /clients/:clientId/rotate-secret`
-
-Genera un nuevo `clientSecret`. Los tokens previamente emitidos siguen siendo válidos hasta su expiración.
-
-#### `PATCH /clients/:clientId/token-expiry`
-
-Actualiza la duración del access token.
-
-```json
-{ "tokenExpiresInSeconds": 7200 }
-```
-
-#### `PATCH /clients/:clientId/reactivate`
-
-Reactiva una aplicación desactivada.
-
-#### `DELETE /clients/:clientId`
-
-Desactiva la aplicación (soft delete). Los refresh tokens activos quedan revocados inmediatamente.
-
-#### `DELETE /clients/:clientId/permanent`
-
-Elimina permanentemente la aplicación. No reversible.
-
----
-
-### Admin — Sesión de administración
-
-#### `GET /admin/setup-required`
-
-Retorna si el primer administrador ya fue configurado.
-
-```json
-{ "setupRequired": true }
-```
-
-Límite: 3 req/min.
-
-#### `POST /admin/setup`
-
-Crea el primer administrador. Solo funciona si no existe ninguno.
-
-```json
-{
-  "username": "admin",
-  "password": "contrasena-segura"
-}
-```
-
-`password` mínimo 8 caracteres. Límite: 3 req/min.
-
-#### `POST /admin/login`
-
-Valida credenciales y establece una cookie `admin_session` (httpOnly, JWT, 24h).
-
-```json
-{
-  "username": "admin",
-  "password": "contrasena-segura"
-}
-```
-
-Límite: 5 req/min.
-
-#### `POST /admin/logout`
-
-Elimina la cookie de sesión.
-
-#### `GET /admin/me`
-
-Retorna el usuario de la sesión activa. Requiere cookie.
-
----
-
-### Health — Estado del servicio
-
-#### `GET /health/ping`
-
-Liveness check mínimo. Sin autenticación. Sin throttle.
-
-```json
-{
-  "status": "ok",
-  "timestamp": "2026-05-19T12:00:00.000Z",
-  "uptime": 3600
-}
-```
-
-#### `GET /health/status`
-
-Estado completo: base de datos, memoria, disco, circuit breaker y bulkheads.
-
-Si `HEALTH_STATUS_TOKEN` está configurado, requiere el header `x-health-token`.
-
-```json
-{
-  "status": "ok",
-  "info": {
-    "database": { "status": "up" },
-    "memory_heap": { "status": "up" },
-    "memory_rss": { "status": "up" },
-    "disk_storage": { "status": "up" }
-  },
-  "gateway": {
-    "circuitBreaker": { "state": "CLOSED", "failureRate": 0 },
-    "bulkhead": {
-      "high": { "pending": 0, "size": 0, "concurrency": 10 },
-      "low":  { "pending": 0, "size": 0, "concurrency": 5 }
-    }
-  },
-  "bulkhead": { "active": 0, "queued": 0, "concurrency": 50 }
-}
-```
-
----
-
-## Resiliencia
-
-El servicio implementa tres capas independientes:
-
-### 1. HTTP Bulkhead global
-
-Middleware aplicado a todas las rutas (excepto `/health/status`).
-
-| Parámetro | Default | Variable |
-|---|---|---|
-| Concurrencia | 50 | `HTTP_BULKHEAD_CONCURRENCY` |
-| Cola máxima | 100 | `HTTP_BULKHEAD_MAX_QUEUE` |
-
-Responde `429` cuando la cola está llena.
-
-### 2. OAuth Bulkhead
-
-Interceptor en `POST /oauth/token`. Limita las operaciones `bcrypt` concurrentes para prevenir DoS por CPU.
-
-| Parámetro | Valor |
-|---|---|
-| Concurrencia máxima | 3 |
-| Cola máxima | 5 |
-| Timeout de cola | 5 segundos |
-
-### 3. Gateway Circuit Breaker + Priority Bulkhead
-
-Protege las llamadas al `api-gateway`.
-
-| Parámetro | Valor |
-|---|---|
-| Umbral de fallo | 50% en ventana de 10 llamadas (mín. 5) |
-| Tiempo abierto | 30 segundos |
-| Lane alta prioridad | concurrencia 10 (by-number lookups) |
-| Lane baja prioridad | concurrencia 5 (list queries) |
-
-Cuando el circuito está abierto, retorna `503 Service Unavailable`.
-
----
-
-## Seguridad
-
-### Tokens
-
-- **Access token:** JWT HS256, firmado con `JWT_SECRET`. Incluye `iss: api-middleware-service`, `aud: external-clients`. Duración configurable por cliente (1h–7d).
-- **Refresh token:** JWT HS256 con `jti` único (UUID v4). El `SHA-256(jti)` se almacena en BD para lookup exacto. Expiración: 7 días. Rotación en transacción — si falla la emisión del nuevo token, el viejo no queda revocado.
-- **Reuse attack detection:** si se usa un refresh token ya revocado, se revocan todos los tokens activos del cliente.
-
-### Credenciales
-
-- `clientSecret` almacenado como hash bcrypt (cost 10). Nunca se persiste en texto plano.
-- `validateCredentials` ejecuta bcrypt dummy cuando el `clientId` no existe para evitar enumeración por timing.
-- `AdminApiKeyGuard` usa `crypto.timingSafeEqual` para comparar la API key.
-
-### Sesión de admin
-
-- Cookie `admin_session`: httpOnly, SameSite=strict, Secure en staging/prod, 24h de vida.
-- JWT firmado con `ADMIN_SESSION_SECRET` (secret independiente de `JWT_SECRET`).
-
-### Rate limiting
-
-| Endpoint | Límite |
-|---|---|
-| `POST /oauth/token` | 10 req/min + bulkhead |
-| `POST /oauth/refresh` | 5 req/min |
-| `POST /admin/login` | 5 req/min |
-| `GET /admin/setup-required` | 3 req/min |
-| `POST /admin/setup` | 3 req/min |
-| Global (todos los demás) | 100 req/min |
-
-> En deployments multi-instancia, el ThrottlerModule necesita `ThrottlerStorageRedisService` para compartir contadores entre instancias.
-
----
-
-## Base de datos
-
-El servicio gestiona tres tablas en `middleware_db`:
-
-### `external_clients`
-
-| Columna | Tipo | Descripción |
-|---|---|---|
-| `clientId` | varchar(64) PK | Identificador con prefijo `mc_` |
-| `clientSecretHash` | varchar(128) | Hash bcrypt del secret |
-| `name` | varchar(100) | Nombre de la aplicación |
-| `description` | varchar(255) | Descripción (nullable) |
-| `tokenExpiresInSeconds` | int | Duración del access token |
-| `allowedScopes` | json | Scopes permitidos (null = sin restricción) |
-| `isActive` | bool | Estado de la aplicación |
-
-### `refresh_tokens`
-
-| Columna | Tipo | Descripción |
-|---|---|---|
-| `id` | int PK autoincrement | — |
-| `clientId` | varchar(64) idx | Referencia al cliente |
-| `tokenHash` | varchar(128) | SHA-256 del jti (lookup) |
-| `jtiHash` | varchar(64) idx | SHA-256 del jti (verificación) |
-| `grantedScopes` | json | Scopes del token original |
-| `expiresAt` | datetime | Expiración del token |
-| `revokedAt` | datetime | Fecha de revocación (null = activo) |
-
-Un cron job a las **3am** limpia tokens expirados y revocados con más de 24h de antigüedad.
-
-### `admins`
-
-| Columna | Tipo | Descripción |
-|---|---|---|
-| `id` | int PK autoincrement | — |
-| `username` | varchar(100) unique | Nombre de usuario |
-| `passwordHash` | varchar(128) | Hash bcrypt (cost 12) |
-
----
-
-## Tests
+### Staging
 
 ```bash
-# Todos los tests unitarios
-npm test
+# 1. Configurar variables en .env.staging
+# 2. Compilar y levantar con PM2
 
-# Con cobertura
-npm run test:cov
-
-# Tests e2e
-npm run test:e2e
+npm run build
+pm2 start ecosystem.config.js --env staging
 ```
 
-Los tests de guards e interceptores usan `.overrideInterceptor()` y `.overrideGuard()` de `@nestjs/testing` para aislar el comportamiento sin dependencias externas.
+Apache actúa como reverse proxy y termina TLS. El servicio corre en `http://localhost:3007` internamente y solo acepta requests que lleguen con el header `X-Forwarded-Proto: https`. Acceso directo al puerto 3007 devuelve `426 Upgrade Required`.
+
+Swagger disponible en `/docs`.
+
+---
+
+### Producción
+
+```bash
+# 1. Configurar variables de entorno reales en el servidor (NO hardcodear en .env.production)
+# 2. Instalar solo dependencias de runtime
+
+npm install --omit=dev
+npm run build
+pm2 start ecosystem.config.js --env production
+```
+
+Archivos necesarios en el servidor:
+
+```
+dist/
+node_modules/
+ecosystem.config.js
+package.json
+.env.production        (solo si no se usan variables del sistema operativo)
+```
+
+Swagger desactivado en producción.
+
+**Variables que DEBEN estar definidas con valores reales** (el servicio falla al iniciar si no están o tienen el prefijo `dev-only--`):
+
+| Variable | Longitud mínima |
+|---|---|
+| `JWT_SECRET` | 32 caracteres |
+| `ADMIN_SESSION_SECRET` | 32 caracteres |
+
+---
+
+## Base de datos y migraciones
+
+### Primera vez (DB en blanco)
+
+Borrar tablas si existen y correr las migraciones desde cero:
+
+```sql
+DROP TABLE IF EXISTS migrations;
+DROP TABLE IF EXISTS refresh_tokens;
+DROP TABLE IF EXISTS external_clients;
+DROP TABLE IF EXISTS admins;
+```
+
+```bash
+npm run migration:run
+```
+
+Ejecuta las tres migraciones en orden:
+
+1. `1740000000000-InitialSchema` — crea tablas `admins`, `external_clients`, `refresh_tokens`
+2. `1745000000000-AddJtiHashToRefreshTokens` — agrega columna `jtiHash` + índice
+3. `1748302418000-AddGrantedScopesToRefreshTokens` — agrega columna `grantedScopes`
+
+### Verificar estado
+
+```bash
+npm run migration:show
+```
+
+### Revertir última migración
+
+```bash
+npm run migration:revert
+```
+
+---
+
+## Configuración inicial del administrador
+
+Antes de registrar clientes se debe crear el administrador. Solo funciona si no existe ninguno.
+
+```bash
+# Verificar si hace falta
+curl http://localhost:3007/admin/setup-required
+
+# Crear administrador
+curl -X POST http://localhost:3007/admin/setup \
+  -H "Content-Type: application/json" \
+  -d '{"username": "admin", "password": "password123"}'
+```
+
+Login para obtener la cookie de sesión:
+
+```bash
+curl -X POST http://localhost:3007/admin/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"username": "admin", "password": "password123"}'
+```
+
+---
+
+## Uso del proxy
+
+### 1. Registrar una aplicación externa
+
+Requiere sesión de administrador (cookie).
+
+```bash
+curl -X POST http://localhost:3007/clients \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{
+    "name": "Mi Aplicacion",
+    "description": "Sistema externo de reportes",
+    "tokenExpiresInSeconds": 3600,
+    "allowedScopes": ["requests:read"]
+  }'
+```
+
+La respuesta incluye `clientId` (prefijo `mc_`) y `clientSecret`. **El `clientSecret` solo se muestra una vez.**
+
+```json
+{
+  "clientId": "mc_a1b2c3d4e5",
+  "clientSecret": "s3cr3t-plain-text-only-once",
+  "name": "Mi Aplicacion"
+}
+```
+
+---
+
+### 2. Obtener un access token (OAuth2 client_credentials)
+
+Credenciales via Basic Auth: `clientId:clientSecret` codificado en base64.
+
+```bash
+curl -X POST http://localhost:3007/oauth/token \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Basic $(echo -n 'mc_a1b2c3d4e5:s3cr3t-plain-text-only-once' | base64)" \
+  -d '{"grant_type": "client_credentials", "scope": "requests:read"}'
+```
+
+Respuesta:
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "client_name": "Mi Aplicacion",
+  "scope": ["requests:read"]
+}
+```
+
+---
+
+### 3. Renovar el access token
+
+```bash
+curl -X POST http://localhost:3007/oauth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "eyJhbGciOiJIUzI1NiJ9..."}'
+```
+
+El refresh token anterior queda revocado (rotación OWASP). Si se reutiliza un token ya rotado, todos los tokens activos del cliente se revocan automáticamente.
+
+---
+
+### 4. Consultar solicitudes
+
+Usar el `access_token` como Bearer en el header `Authorization`.
+
+#### Obtener solicitud por número
+
+```bash
+curl http://localhost:3007/v1/requests/REQ0001234 \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..."
+```
+
+#### Listar solicitudes con filtros
+
+```bash
+curl "http://localhost:3007/v1/requests?status=CREATED,IN_PROGRESS&page=1&limit=20" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..."
+```
+
+Parámetros disponibles:
+
+| Parámetro | Descripción | Ejemplo |
+|---|---|---|
+| `status` | Estado(s) separados por coma | `CREATED,IN_PROGRESS` |
+| `issueTypeId` | UUID del tipo de incidencia | `uuid-issue-type` |
+| `cornerId` | UUID del corner | `uuid-corner` |
+| `companyId` | UUID de la compañía | `uuid-company` |
+| `dateFrom` | Fecha inicial | `2026-01-01` |
+| `dateTo` | Fecha final | `2026-12-31` |
+| `page` | Página (default: 1) | `1` |
+| `limit` | Resultados por página, máx 100 (default: 20) | `20` |
+
+#### Listar issues
+
+```bash
+curl "http://localhost:3007/v1/issues?page=1&limit=20" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9..."
+```
+
+---
+
+## Gestión de clientes (administración)
+
+Todos los endpoints requieren sesión de administrador.
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `POST` | `/clients` | Registrar nueva aplicación |
+| `GET` | `/clients` | Listar aplicaciones (paginado) |
+| `GET` | `/clients/:clientId` | Detalle de una aplicación |
+| `PATCH` | `/clients/:clientId/rotate-secret` | Rotar el secret |
+| `PATCH` | `/clients/:clientId/token-expiry` | Cambiar duración del token |
+| `DELETE` | `/clients/:clientId` | Desactivar (soft-delete) |
+| `PATCH` | `/clients/:clientId/reactivate` | Reactivar |
+| `DELETE` | `/clients/:clientId/permanent` | Eliminar permanentemente |
+
+---
+
+## Health
+
+```bash
+# Sin autenticación — solo verifica que el proceso está vivo
+curl http://localhost:3007/health/ping
+
+# Con métricas de resiliencia (DB, memoria, disco, circuit breaker, bulkhead)
+curl http://localhost:3007/health/status
+
+# Con token si HEALTH_STATUS_TOKEN está configurado
+curl http://localhost:3007/health/status \
+  -H "x-health-token: <HEALTH_STATUS_TOKEN>"
+```
+
+---
+
+## Variables de entorno
+
+| Variable | Descripción | Requerida en prod |
+|---|---|---|
+| `PORT` | Puerto del servidor (default: 3007) | No |
+| `DB_HOST` | Host MySQL | Sí |
+| `DB_PORT` | Puerto MySQL (default: 3306) | No |
+| `DB_USERNAME` | Usuario MySQL | Sí |
+| `DB_PASSWORD` | Password MySQL | Sí |
+| `DB_DATABASE` | Nombre de la base de datos (default: middleware_db) | No |
+| `JWT_SECRET` | Secreto para firmar tokens (min 32 chars) | Sí |
+| `JWT_EXPIRATION` | Duración del access token en segundos (default: 3600) | No |
+| `ADMIN_SESSION_SECRET` | Secreto para la cookie de sesión admin (min 32 chars) | Sí |
+| `ADMIN_API_KEY` | API key alternativa para endpoints admin | No |
+| `API_GATEWAY_URL` | URL del api-gateway (default: http://localhost:3000) | Sí |
+| `ABAC_M2M_TOKEN` | Token M2M para llamadas al api-gateway | Sí |
+| `CORS_ALLOWED_ORIGINS` | Orígenes permitidos separados por coma | Sí |
+| `HEALTH_STATUS_TOKEN` | Token para proteger `/health/status` | No |
+| `HTTP_BULKHEAD_CONCURRENCY` | Concurrencia máxima entrante (default: 50) | No |
+| `HTTP_BULKHEAD_MAX_QUEUE` | Cola máxima del bulkhead (default: 100) | No |
+| `EXT_ISSUES_URL` | URL del sistema externo de issues | No |
+| `EXT_ISSUES_TOKEN` | Token de autenticación para el sistema de issues | No |

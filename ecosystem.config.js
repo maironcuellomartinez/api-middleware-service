@@ -13,6 +13,9 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '512M',
+      env_development: {
+        NODE_ENV: 'development',
+      },
       env_staging: {
         NODE_ENV: 'staging',
       },

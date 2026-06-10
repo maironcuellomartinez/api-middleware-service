@@ -20,7 +20,7 @@ export class RefreshTokenEntity {
     tokenHash!: string;
 
     /** SHA-256 del jti — lookup exacto sin ambiguedad por orden */
-    @Index()
+    @Index('IDX_refresh_tokens_jtiHash')
     @Column({ type: 'varchar', length: 64, nullable: true })
     jtiHash!: string | null;
 
