@@ -18,6 +18,6 @@ export const AppDataSource = new DataSource({
     password: process.env.DB_PASSWORD ?? 'root',
     database: process.env.DB_DATABASE ?? 'middleware_db',
     entities: [ExternalClientEntity, RefreshTokenEntity, AdminEntity],
-    migrations: ['src/migrations/*.ts'],
+    migrations: [path.join(__dirname, '../migrations/*.{ts,js}')],
     synchronize: false,
 });

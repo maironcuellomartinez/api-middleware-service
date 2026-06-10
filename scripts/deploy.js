@@ -123,7 +123,12 @@ async function main() {
     execSync('npm install --omit=dev', { cwd: outputDir, stdio: 'inherit' });
     ok('node_modules instalado');
 
-    // 4. Crear ZIP
+    // 4. Ejecutar migraciones pendientes
+    step('Ejecutando migraciones (migration:run:dist)...');
+    execSync('npm run migration:run:dist', { cwd: outputDir, stdio: 'inherit', env: { ...process.env, NODE_ENV: env } });
+    ok('Migraciones aplicadas');
+
+    // 6. Crear ZIP
     step(`Creando ${outputDirName}.zip...`);
     if (os.platform() === 'win32') {
         execSync(
