@@ -56,7 +56,7 @@ async function bootstrap() {
 
     // Swagger solo en entornos no productivos
     if (env !== 'production') {
-        const config = new DocumentBuilder()
+        const builder = new DocumentBuilder()
             .setTitle('API Middleware Service')
             .setDescription('Proxy OAuth2 para aplicaciones externas → Event Corner')
             .setVersion('1.0')
@@ -65,12 +65,19 @@ async function bootstrap() {
             .addTag('Auth', 'OAuth2 client credentials')
             .addTag('Clients', 'Gestion de aplicaciones externas registradas')
             .addTag('Records', 'Consulta de solicitudes')
-            .addTag('Health', 'Estado del servicio — sin autenticacion')
-            .build();
+            .addTag('Health', 'Estado del servicio — sin autenticacion');
 
-        const document = SwaggerModule.createDocument(app, config);
+        // En staging/prod el proxy Apache sirve la API bajo un sub-path (ej: /r/api).
+        // Swagger necesita conocer ese prefijo para que los curl/Try-it-out apunten
+        // a la URL correcta. Configurable via SWAGGER_BASE_PATH en el .env.
+        const swaggerBasePath = process.env.SWAGGER_BASE_PATH;
+        if (swaggerBasePath) {
+            builder.addServer(swaggerBasePath);
+        }
+
+        const document = SwaggerModule.createDocument(app, builder.build());
         SwaggerModule.setup('docs', app, document);
-        logger.log('Swagger disponible en /docs');
+        logger.log(`Swagger disponible en /docs${swaggerBasePath ? ` (server: ${swaggerBasePath})` : ''}`);
     }
 
     const port = process.env.PORT ?? 3007;
@@ -78,3 +85,4 @@ async function bootstrap() {
     logger.log(`api-middleware-service [${env}] corriendo en puerto ${port}`);
 }
 bootstrap();
+ 

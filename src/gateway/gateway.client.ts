@@ -140,10 +140,10 @@ export class GatewayClient {
                 const status = err.response.status;
                 if (status === 404) throw new NotFoundException('Recurso no encontrado');
                 const upstream = err.response.data;
-                const message = typeof upstream?.message === 'string'
-                    ? upstream.message
-                    : `Error del api-gateway (${status})`;
-                throw new HttpException(message, status);
+                const body = upstream && typeof upstream === 'object'
+                    ? upstream
+                    : { statusCode: status, message: upstream ?? `Error del api-gateway (${status})` };
+                throw new HttpException(body, status);
             }
             throw err;
         }

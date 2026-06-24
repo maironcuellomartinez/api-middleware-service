@@ -55,7 +55,7 @@ export default function SetupPage() {
     setLoading(true);
     try {
       await axios.post(
-        `${API_BASE}/admin/setup`,
+        `/admin/setup`,
         { username: username.trim(), password },
         { headers: { 'Content-Type': 'application/json' } },
       );

@@ -11,7 +11,7 @@ if (!CLIENT_ID || !CLIENT_SECRET) {
   throw new Error(
     '\n\nFaltan credenciales. Completá k6/env.js con los valores de tu cliente de prueba.\n' +
     'Copiá k6/env.example.js → k6/env.js y completá K6_CLIENT_ID y K6_CLIENT_SECRET.\n',
-  );
+  )
 }
 
 /**
