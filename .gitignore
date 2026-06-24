@@ -7,3 +7,4 @@
 .env.test
 /coverage
 k6/env.js
+error.jpg
