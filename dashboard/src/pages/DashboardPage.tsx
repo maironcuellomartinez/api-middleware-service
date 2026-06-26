@@ -40,7 +40,7 @@ export default function DashboardPage() {
 
         if (cancelled) return;
 
-        const uptimeSeconds = Math.floor(health.uptime);
+        const uptimeSeconds = Math.floor(Number(health.uptime) || 0);
         const hours = Math.floor(uptimeSeconds / 3600);
         const minutes = Math.floor((uptimeSeconds % 3600) / 60);
 

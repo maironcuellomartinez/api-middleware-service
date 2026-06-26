@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchRecords, RequestRecord } from '../lib/api';
 import { Badge } from '../components/ui/badge';
-import { Select } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -86,16 +85,17 @@ export default function RecordsPage() {
       <div className="flex flex-wrap items-end gap-4">
         <div className="space-y-2">
           <Label htmlFor="status">Estado</Label>
-          <Select
+          <select
             id="status"
             value={filters.status}
             onChange={(e) => setFilter('status')(e.target.value)}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <option value="">Todos</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>{s.replace('_', ' ')}</option>
             ))}
-          </Select>
+          </select>
         </div>
 
         <div className="space-y-2">

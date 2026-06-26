@@ -56,7 +56,7 @@ export default function IssuesPage() {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [state, setState] = useState<IssuesState>({ kind: 'idle' });
 
-  const setFilter = (key: keyof Filters) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const setFilter = (key: keyof Filters) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setFilters((prev) => ({ ...prev, [key]: e.target.value }));
 
   const buildParams = (f: Filters): Record<string, string> => {
@@ -79,9 +79,12 @@ export default function IssuesPage() {
       setState({ kind: 'ok', issues });
     } catch (err: unknown) {
       const is503 = err instanceof Error && err.message.includes('503');
+      const is400 = err instanceof Error && err.message.includes('400');
       setState(
         is503
           ? { kind: 'gateway-down' }
+          : is400
+          ? { kind: 'error', message: 'La fecha inicial es requerida para realizar la búsqueda.' }
           : { kind: 'error', message: err instanceof Error ? err.message : 'Error al consultar issues' },
       );
     }
@@ -137,14 +140,18 @@ export default function IssuesPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="tipology">Tipología</Label>
-            <Input
+            <select
               id="tipology"
-              type="text"
-              placeholder="Hardware, Software..."
               value={filters.tipology}
               onChange={setFilter('tipology')}
-              className="w-44"
-            />
+              className="flex h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <option value="">Todas</option>
+              <option value="ONBOARDING">ONBOARDING</option>
+              <option value="TRANSFER">TRANSFER</option>
+              <option value="REINSTATEMENT">REINSTATEMENT</option>
+              <option value="REHIRED">REHIRED</option>
+            </select>
           </div>
         </div>
 
@@ -198,7 +205,7 @@ export default function IssuesPage() {
 
         {/* Acciones */}
         <div className="flex gap-2">
-          <Button size="sm" onClick={handleSearch} disabled={state.kind === 'loading'}>
+          <Button size="sm" onClick={handleSearch} disabled={state.kind === 'loading' || !filters.startDate}>
             <Search className="mr-1.5 h-3.5 w-3.5" />
             Buscar
           </Button>
@@ -222,7 +229,7 @@ export default function IssuesPage() {
         <CardContent className="p-0">
           {state.kind === 'idle' ? (
             <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
-              Aplicá filtros y presioná Buscar para consultar issues
+              Ingresá una fecha inicial y presioná Buscar para consultar issues
             </div>
           ) : state.kind === 'loading' ? (
             <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">
@@ -313,7 +320,7 @@ function GatewayDownState({ onRetry }: { onRetry: () => void }) {
       <div>
         <p className="font-medium text-foreground">Servicio no disponible</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          El servicio de issues no responde. Verificá que esté activo en el puerto 3003.
+          El servicio de issues no responde. Verificá que el gateway esté activo.
         </p>
       </div>
       <Button variant="outline" size="sm" onClick={onRetry}>

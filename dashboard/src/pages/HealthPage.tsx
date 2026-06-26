@@ -175,7 +175,7 @@ export default function HealthPage() {
     return () => { cancelled = true; };
   }, []);
 
-  const uptimeSeconds = Math.floor(health?.uptime ?? 0);
+  const uptimeSeconds = Math.floor(Number(health?.uptime) || 0);
   const days    = Math.floor(uptimeSeconds / 86400);
   const hours   = Math.floor((uptimeSeconds % 86400) / 3600);
   const minutes = Math.floor((uptimeSeconds % 3600) / 60);
