@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -9,8 +10,9 @@ import ClientDetailPage from './pages/ClientDetailPage';
 import RecordsPage from './pages/RecordsPage';
 import IssuesPage from './pages/IssuesPage';
 import HealthPage from './pages/HealthPage';
-import DocsLayout from './pages/docs/DocsLayout';
-import DocsPage from './pages/docs/DocsPage';
+
+const DocsLayout = lazy(() => import('./pages/docs/DocsLayout'));
+const DocsPage = lazy(() => import('./pages/docs/DocsPage'));
 
 export default function App() {
   return (
@@ -26,9 +28,16 @@ export default function App() {
           <Route path="/issues" element={<IssuesPage />} />
           <Route path="/health" element={<HealthPage />} />
         </Route>
-        <Route path="/docs" element={<DocsLayout />}>
-          <Route index element={<DocsPage />} />
-          <Route path=":slug" element={<DocsPage />} />
+        <Route
+          path="/docs"
+          element={
+            <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-muted-foreground">Cargando documentación...</p></div>}>
+              <DocsLayout />
+            </Suspense>
+          }
+        >
+          <Route index element={<Suspense fallback={null}><DocsPage /></Suspense>} />
+          <Route path=":slug" element={<Suspense fallback={null}><DocsPage /></Suspense>} />
         </Route>
       </Route>
     </Routes>

@@ -15,11 +15,13 @@ export default function LoginPage() {
 
   useEffect(() => {
     let cancelled = false;
-    checkSetupRequired().then((res) => {
-      if (!cancelled && res.setupRequired) {
-        navigate('/setup', { replace: true });
-      }
-    });
+    checkSetupRequired()
+      .then((res) => {
+        if (!cancelled && res.setupRequired) {
+          navigate('/setup', { replace: true });
+        }
+      })
+      .catch(() => { /* backend no disponible, mostrar login igual */ });
     return () => { cancelled = true; };
   }, [navigate]);
 

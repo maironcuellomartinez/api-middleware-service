@@ -1,30 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import mermaid from 'mermaid'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'base',
-  themeVariables: {
-    primaryColor: '#818cf8',
-    primaryTextColor: '#1e293b',
-    primaryBorderColor: '#6366f1',
-    lineColor: '#94a3b8',
-    secondaryColor: '#f8fafc',
-    tertiaryColor: '#f1f5f9',
-    background: '#ffffff',
-    mainBkg: '#eef2ff',
-    nodeBorder: '#6366f1',
-    clusterBkg: '#f8fafc',
-    titleColor: '#1e293b',
-    edgeLabelBackground: '#f8fafc',
-    fontSize: '13px',
-  },
-  flowchart: { curve: 'basis', padding: 20 },
-  sequence: { actorMargin: 60, messageMargin: 40, boxMargin: 12 },
-})
-
+let initialized = false
 let counter = 0
 
 export function MermaidDiagram({ chart, className }: { chart: string; className?: string }) {
@@ -39,6 +17,31 @@ export function MermaidDiagram({ chart, className }: { chart: string; className?
     const render = async () => {
       if (!containerRef.current) return
       try {
+        const mermaid = (await import('mermaid')).default
+        if (!initialized) {
+          mermaid.initialize({
+            startOnLoad: false,
+            theme: 'base',
+            themeVariables: {
+              primaryColor: '#818cf8',
+              primaryTextColor: '#1e293b',
+              primaryBorderColor: '#6366f1',
+              lineColor: '#94a3b8',
+              secondaryColor: '#f8fafc',
+              tertiaryColor: '#f1f5f9',
+              background: '#ffffff',
+              mainBkg: '#eef2ff',
+              nodeBorder: '#6366f1',
+              clusterBkg: '#f8fafc',
+              titleColor: '#1e293b',
+              edgeLabelBackground: '#f8fafc',
+              fontSize: '13px',
+            },
+            flowchart: { curve: 'basis', padding: 20 },
+            sequence: { actorMargin: 60, messageMargin: 40, boxMargin: 12 },
+          })
+          initialized = true
+        }
         const { svg } = await mermaid.render(id.current, chart.trim())
         if (cancelled || !containerRef.current) return
         containerRef.current.innerHTML = svg

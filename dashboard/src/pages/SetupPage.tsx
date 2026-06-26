@@ -21,15 +21,19 @@ export default function SetupPage() {
 
   useEffect(() => {
     let cancelled = false;
-    checkSetupRequired().then((res) => {
-      if (!cancelled) {
-        if (!res.setupRequired) {
-          navigate('/login', { replace: true });
-        } else {
-          setChecking(false);
+    checkSetupRequired()
+      .then((res) => {
+        if (!cancelled) {
+          if (!res.setupRequired) {
+            navigate('/login', { replace: true });
+          } else {
+            setChecking(false);
+          }
         }
-      }
-    });
+      })
+      .catch(() => {
+        if (!cancelled) setChecking(false);
+      });
     return () => { cancelled = true; };
   }, [navigate]);
 
