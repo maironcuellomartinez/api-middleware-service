@@ -316,7 +316,7 @@ function ComponentCard({ card }: { card: ComponentCard }) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-3">
-          {card.metrics.map((m) => <Metric key={m.label} label={m.label} value={m.value} highlight={m.highlight} />)}
+          {card.metrics.map((m) => <Metric key={m.label} label={m.label} value={m.value} {...(m.highlight !== undefined && { highlight: m.highlight })} />)}
         </div>
       </CardContent>
     </Card>

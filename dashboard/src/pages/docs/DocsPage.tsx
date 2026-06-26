@@ -30,7 +30,7 @@ export default function DocsPage() {
     );
   }
 
-  const MDXContent = mdxModules[slug];
+  const MDXContent = mdxModules[slug]!;
 
   return (
     <MDXProvider components={components}>

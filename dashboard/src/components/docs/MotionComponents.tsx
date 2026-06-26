@@ -120,7 +120,7 @@ export function MotionStaggerItem({
   ...props
 }: HTMLAttributes<HTMLLIElement>) {
   return (
-    <motion.li variants={staggerItem} className={cn(className)} {...props}>
+    <motion.li variants={staggerItem} className={cn(className)} {...(props as any)}>
       {children}
     </motion.li>
   );
@@ -221,7 +221,7 @@ export const MotionInlineCode = forwardRef<
       'relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold',
       className
     )}
-    {...props}
+    {...(props as any)}
   >
     {children}
   </motion.code>
@@ -268,7 +268,7 @@ export function MotionPre({
       viewport={{ once: true, margin: '-40px' }}
       variants={fadeSlideUp}
     >
-      <Card className={cn('my-6 overflow-hidden', className)} {...props}>
+      <Card className={cn('my-6 overflow-hidden', className)} {...(props as any)}>
         <CardContent className="p-0">
           <pre className="overflow-x-auto p-4 text-sm">{children}</pre>
         </CardContent>
@@ -572,7 +572,7 @@ export function MotionBlockquote({
       viewport={{ once: true, margin: '-40px' }}
       variants={fadeSlideUp}
       className={cn('mt-6 border-l-2 pl-6 italic', className)}
-      {...props}
+      {...(props as any)}
     >
       {children}
     </motion.blockquote>

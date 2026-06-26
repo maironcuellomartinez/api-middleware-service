@@ -203,7 +203,7 @@ export default function IssuesPage() {
             Buscar
           </Button>
           {state.kind === 'ok' && (
-            <Button variant="outline" size="sm" onClick={handleSearch} disabled={state.kind === 'loading'}>
+            <Button variant="outline" size="sm" onClick={handleSearch}>
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
               Actualizar
             </Button>
