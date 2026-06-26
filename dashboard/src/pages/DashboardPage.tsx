@@ -24,12 +24,25 @@ interface DashboardData {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [recentRecords, setRecentRecords] = useState<RequestRecord[]>([]);
-  const [recordsUnavailable, setRecordsUnavailable] = useState(false);
+  const [recordsError, setRecordsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const loadRecords = async (cancelled: { value: boolean }) => {
+    setRecordsError(null);
+    try {
+      const records = await fetchRecords({ limit: '5' });
+      if (!cancelled.value) setRecentRecords((records as RequestRecord[]).slice(0, 5));
+    } catch (err: unknown) {
+      if (!cancelled.value) {
+        const is503 = err instanceof Error && err.message.includes('503');
+        setRecordsError(is503 ? 'gateway-down' : 'error');
+      }
+    }
+  };
+
   useEffect(() => {
-    let cancelled = false;
+    const cancelled = { value: false };
 
     async function load() {
       try {
@@ -51,25 +64,18 @@ export default function DashboardPage() {
           uptime: `${hours}h ${minutes}m`,
         });
       } catch (err: unknown) {
-        if (!cancelled) {
+        if (!cancelled.value) {
           setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled.value) setLoading(false);
       }
 
-      // Records se carga de forma independiente — si el gateway no está disponible
-      // el dashboard sigue mostrando clientes y salud sin colapsar.
-      try {
-        const records = await fetchRecords({ limit: 5 });
-        if (!cancelled) setRecentRecords((records as RequestRecord[]).slice(0, 5));
-      } catch {
-        if (!cancelled) setRecordsUnavailable(true);
-      }
+      loadRecords(cancelled);
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => { cancelled.value = true; };
   }, []);
 
   if (loading) {
@@ -169,10 +175,22 @@ export default function DashboardPage() {
           <CardTitle>Recent Records</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {recordsUnavailable ? (
+          {recordsError ? (
             <div className="px-6 py-8 text-center text-sm text-muted-foreground">
-              <p className="font-medium">Gateway no disponible</p>
-              <p className="mt-1 text-xs">Los registros se cargarán cuando el api-gateway esté activo.</p>
+              <p className="font-medium">
+                {recordsError === 'gateway-down' ? 'Gateway no disponible' : 'Error al cargar registros'}
+              </p>
+              <p className="mt-1 text-xs">
+                {recordsError === 'gateway-down'
+                  ? 'Los registros se cargarán cuando el api-gateway esté activo.'
+                  : 'No se pudieron obtener los registros recientes.'}
+              </p>
+              <button
+                onClick={() => loadRecords({ value: false })}
+                className="mt-3 text-xs underline text-primary hover:opacity-80"
+              >
+                Reintentar
+              </button>
             </div>
           ) : recentRecords.length > 0 ? (
             <Table>
