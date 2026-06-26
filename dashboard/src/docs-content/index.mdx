@@ -90,7 +90,7 @@ flowchart LR
       <CardTitle className="text-sm font-mono">RecordsModule</CardTitle>
     </CardHeader>
     <CardContent>
-      <CardDescription>Proxy de consultas hacia el api-gateway interno. Expone GET /v1/requests con filtros y busqueda por numero de solicitud.</CardDescription>
+      <CardDescription>Proxy de consultas hacia los gateways externos. Expone GET /v1/requests (solicitudes), GET /v1/issues (issues del sistema externo) y GET /v1/logs (actividad reciente).</CardDescription>
     </CardContent>
   </Card>
   <Card>
@@ -98,7 +98,15 @@ flowchart LR
       <CardTitle className="text-sm font-mono">GatewayModule</CardTitle>
     </CardHeader>
     <CardContent>
-      <CardDescription>Cliente HTTP resiliente con PQueue de prioridad (HP concurrencia 10 / LP concurrencia 5) y circuit breaker opossum con error filter 4xx.</CardDescription>
+      <CardDescription>Cliente HTTP resiliente con dos URLs: gateway.url para solicitudes e extIssues.url para issues. PQueue HP/LP y circuit breaker opossum con error filter 4xx.</CardDescription>
+    </CardContent>
+  </Card>
+  <Card>
+    <CardHeader className="pb-2">
+      <CardTitle className="text-sm font-mono">LogsModule</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <CardDescription>Buffer FIFO en memoria de 50 requests HTTP. HttpLoggerMiddleware registra cada request al buffer. GET /v1/logs devuelve los ultimos 30 ordenados por recencia. Se resetea al reiniciar el servicio.</CardDescription>
     </CardContent>
   </Card>
   <Card>
@@ -141,12 +149,14 @@ flowchart LR
 | PATCH | `/clients/:clientId/token-expiry` | AdminSession | Actualizar duracion del token |
 | DELETE | `/clients/:clientId` | AdminSession | Desactivar aplicacion |
 
-### Records (`/v1`)
+### Records e Issues (`/v1`)
 
 | Metodo | Ruta | Auth | Descripcion |
 |---|---|---|---|
 | GET | `/v1/requests/:number` | Bearer o AdminSession | Solicitud por numero |
 | GET | `/v1/requests` | Bearer o AdminSession | Listar solicitudes con filtros |
+| GET | `/v1/issues` | Bearer o AdminSession | Listar issues desde sistema externo |
+| GET | `/v1/logs` | Bearer o AdminSession | Ultimos 30 logs de requests en memoria |
 
 ### Admin (`/admin`)
 

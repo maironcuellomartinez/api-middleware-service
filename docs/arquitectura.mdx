@@ -97,16 +97,26 @@ src/
 │   └── guards/
 │       └── admin-api-key.guard.ts   # Guard legacy por API key
 │
-├── records/                         # Consulta de solicitudes
+├── records/                         # Consulta de solicitudes e issues
 │   ├── records.module.ts
-│   ├── records.controller.ts        # GET /v1/requests
-│   ├── records.service.ts           # getRequestByNumber, listRequests
+│   ├── records.controller.ts        # GET /v1/requests, /v1/issues
+│   ├── records.service.ts           # getRequestByNumber, listRequests, getIssues
 │   └── dto/
-│       └── list-records.dto.ts      # Filtros de busqueda
+│       ├── list-records.dto.ts      # Filtros de solicitudes
+│       └── list-issues.dto.ts       # Filtros de issues
 │
-├── gateway/                         # Cliente HTTP hacia api-gateway
+├── gateway/                         # Cliente HTTP hacia gateways externos
 │   ├── gateway.module.ts
 │   └── gateway.client.ts            # PQueue + Circuit Breaker + HTTP calls
+│                                    # baseUrl → requests, issuesBaseUrl → issues
+│
+├── logs/                            # Logs en memoria
+│   ├── logs.module.ts
+│   ├── logs.controller.ts           # GET /v1/logs
+│   └── logs.service.ts              # Buffer FIFO (max 50), findRecent()
+│
+├── common/
+│   └── http-logger.middleware.ts    # Logger HTTP + push a LogsService
 │
 ├── admin/                           # Autenticacion de administradores
 │   ├── admin.module.ts

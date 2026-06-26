@@ -70,11 +70,23 @@ src/
 │   └── entities/
 │       └── external-client.entity.ts
 │
-├── records/                         # Consulta de solicitudes
-│   └── records.controller.ts        # GET /v1/requests
+├── records/                         # Consulta de solicitudes e issues
+│   ├── records.controller.ts        # GET /v1/requests, /v1/issues, /v1/logs
+│   ├── records.service.ts
+│   └── dto/
+│       ├── list-records.dto.ts
+│       └── list-issues.dto.ts
 │
-├── gateway/                         # Cliente HTTP hacia api-gateway
-│   └── gateway.client.ts            # PQueue + Circuit Breaker + HTTP calls
+├── gateway/                         # Cliente HTTP hacia gateways externos
+│   └── gateway.client.ts            # baseUrl (requests) + issuesBaseUrl (issues)
+│                                    # PQueue HP/LP + Circuit Breaker opossum
+│
+├── logs/                            # Logs en memoria
+│   ├── logs.controller.ts           # GET /v1/logs
+│   └── logs.service.ts              # Buffer FIFO max 50, findRecent()
+│
+├── common/
+│   └── http-logger.middleware.ts    # Logger HTTP + push a LogsService
 │
 ├── admin/                           # Autenticacion de administradores
 │   ├── admin.controller.ts          # setup, login, logout, me

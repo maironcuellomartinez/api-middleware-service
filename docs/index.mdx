@@ -64,11 +64,12 @@ Aplicacion Externa
 |---|---|
 | `AuthModule` | Emision y renovacion de tokens JWT (access + refresh) |
 | `ClientsModule` | CRUD de aplicaciones externas registradas |
-| `RecordsModule` | Consulta de solicitudes hacia el api-gateway |
-| `GatewayModule` | Cliente HTTP resiliente hacia api-gateway interno |
+| `RecordsModule` | Consulta de solicitudes e issues hacia los gateways externos |
+| `GatewayModule` | Cliente HTTP resiliente hacia api-gateway y sistema de issues |
 | `AdminModule` | Autenticacion de administradores (dashboard) |
+| `LogsModule` | Buffer FIFO en memoria (50 entradas) de requests HTTP recientes |
 | `BulkheadModule` | Sistema de bulkhead para proteccion contra sobrecarga |
-| `HealthModule` | Endpoint de salud sin autenticacion |
+| `HealthModule` | Endpoints de salud sin autenticacion |
 
 ## Endpoints
 
@@ -96,6 +97,8 @@ Aplicacion Externa
 |---|---|---|---|
 | GET | `/v1/requests/:number` | Bearer o AdminSession | Solicitud por numero |
 | GET | `/v1/requests` | Bearer o AdminSession | Listar solicitudes con filtros |
+| GET | `/v1/issues` | Bearer o AdminSession | Listar issues desde sistema externo |
+| GET | `/v1/logs` | Bearer o AdminSession | Ultimos 30 logs de requests en memoria |
 
 ### Admin (`/admin`)
 
@@ -111,7 +114,8 @@ Aplicacion Externa
 
 | Metodo | Ruta | Auth | Descripcion |
 |---|---|---|---|
-| GET | `/health/status` | - | Estado del servicio |
+| GET | `/health/ping` | - | Estado basico (status + uptime + timestamp) |
+| GET | `/health/status` | - | Estado detallado de resiliencia (circuit breaker + bulkheads) |
 
 ## Flujo de autenticacion
 
@@ -224,7 +228,8 @@ Guard especifico para `POST /oauth/token` que limita a **3 bcrypt simultaneos** 
 | `JWT_EXPIRATION` | 3600 | Duracion default del access token (s) |
 | `ADMIN_API_KEY` | - | API key de admin (obsoleto) |
 | `ADMIN_SESSION_SECRET` | - | Secreto para JWT de sesion admin |
-| `API_GATEWAY_URL` | http://localhost:3000 | URL del api-gateway interno |
+| `API_GATEWAY_URL` | http://localhost:3000 | URL del api-gateway interno (requests) |
+| `EXT_ISSUES_URL` | http://localhost:3003 | URL del sistema externo de issues |
 | `ABAC_M2M_TOKEN` | - | Token M2M para autenticarse ante api-gateway |
 | `HTTP_BULKHEAD_CONCURRENCY` | 50 | Concurrencia maxima HTTP entrante |
 | `HTTP_BULKHEAD_MAX_QUEUE` | 100 | Cola maxima HTTP entrante |

@@ -29,6 +29,7 @@ ADMIN_API_KEY=dev-only--replace-in-staging-and-production
 ADMIN_SESSION_SECRET=dev-only--replace-in-staging-and-production
 
 API_GATEWAY_URL=http://localhost:3000
+EXT_ISSUES_URL=http://localhost:3003
 ABAC_M2M_TOKEN=dev-only--replace-in-staging-and-production
 
 HTTP_BULKHEAD_CONCURRENCY=50
@@ -55,6 +56,7 @@ JWT_EXPIRATION=3600
 ADMIN_SESSION_SECRET=<real-secret-min-32-chars>
 
 API_GATEWAY_URL=https://api-gateway.internal
+EXT_ISSUES_URL=https://issues-system.internal
 ABAC_M2M_TOKEN=<real-m2m-token>
 
 HTTP_BULKHEAD_CONCURRENCY=50
@@ -149,6 +151,10 @@ curl -X POST http://localhost:3007/oauth/token \
 # 6. Consultar datos
 curl http://localhost:3007/v1/requests \
   -H "Authorization: Bearer <access_token>"
+
+# 7. Verificar logs en memoria (desde el dashboard admin)
+curl http://localhost:3007/v1/logs \
+  -H "Cookie: admin_session=<token>"
 ```
 
 ## Docker (opcional)
