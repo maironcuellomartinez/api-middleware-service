@@ -203,9 +203,9 @@ export async function deleteClient(clientId: string): Promise<void> {
   await api.delete('/clients/' + clientId + '/permanent');
 }
 
-export async function fetchRecords(params?: Record<string, unknown>): Promise<unknown> {
+export async function fetchRecords(params?: Record<string, unknown>): Promise<RequestRecord[]> {
   const { data } = await api.get('/v1/requests', { params });
-  return data;
+  return Array.isArray(data) ? data : (data?.data ?? data?.items ?? data?.records ?? []);
 }
 
 export async function fetchRecordByNumber(number: string): Promise<unknown> {

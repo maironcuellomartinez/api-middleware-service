@@ -56,7 +56,7 @@ export default function RecordsPage() {
       if (f.dateTo)   params.dateTo   = f.dateTo;
 
       const data = await fetchRecords(params);
-      setState({ kind: 'ok', records: data as RequestRecord[] });
+      setState({ kind: 'ok', records: data });
     } catch (err: unknown) {
       const is503 = err instanceof Error && err.message.includes('503');
       setState(

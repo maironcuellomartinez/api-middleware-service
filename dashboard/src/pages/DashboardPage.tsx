@@ -32,7 +32,7 @@ export default function DashboardPage() {
     setRecordsError(null);
     try {
       const records = await fetchRecords({ limit: 5 });
-      if (!cancelled.value) setRecentRecords((records as RequestRecord[]).slice(0, 5));
+      if (!cancelled.value) setRecentRecords(records.slice(0, 5));
     } catch (err: unknown) {
       if (!cancelled.value) {
         const is503 = err instanceof Error && err.message.includes('503');
