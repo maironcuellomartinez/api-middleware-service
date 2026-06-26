@@ -21,9 +21,8 @@ interface Filters {
   serviceNowId: string;
   serviceNowTaskNumber: string;
   serviceNowTaskId: string;
-  tipology: string;
-  descripcion: string;
-  customerUser: string;
+  typology: string;
+  customerIdUser: string;
 }
 
 const EMPTY_FILTERS: Filters = {
@@ -32,9 +31,8 @@ const EMPTY_FILTERS: Filters = {
   serviceNowId: '',
   serviceNowTaskNumber: '',
   serviceNowTaskId: '',
-  tipology: '',
-  descripcion: '',
-  customerUser: '',
+  typology: '',
+  customerIdUser: '',
 };
 
 type IssuesState =
@@ -63,12 +61,11 @@ export default function IssuesPage() {
     const params: Record<string, string> = {};
     if (f.startDate)          params.startDate          = toISOStart(f.startDate);
     if (f.endDate)            params.endDate            = toISOEnd(f.endDate);
-    if (f.serviceNowId)       params.serviceNowId       = f.serviceNowId;
+    if (f.serviceNowId)         params.serviceNowId         = f.serviceNowId;
     if (f.serviceNowTaskNumber) params.serviceNowTaskNumber = f.serviceNowTaskNumber;
-    if (f.serviceNowTaskId)   params.serviceNowTaskId   = f.serviceNowTaskId;
-    if (f.tipology)           params.tipology           = f.tipology;
-    if (f.descripcion)        params.descripcion        = f.descripcion;
-    if (f.customerUser)       params.customerUser       = f.customerUser;
+    if (f.serviceNowTaskId)     params.serviceNowTaskId     = f.serviceNowTaskId;
+    if (f.typology)             params.typology             = f.typology;
+    if (f.customerIdUser)       params.customerIdUser       = f.customerIdUser;
     return params;
   };
 
@@ -128,22 +125,22 @@ export default function IssuesPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="customerUser">Usuario cliente</Label>
+            <Label htmlFor="customerIdUser">Usuario cliente</Label>
             <Input
-              id="customerUser"
+              id="customerIdUser"
               type="text"
               placeholder="usuario@empresa.com"
-              value={filters.customerUser}
-              onChange={setFilter('customerUser')}
+              value={filters.customerIdUser}
+              onChange={setFilter('customerIdUser')}
               className="w-52"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="tipology">Tipología</Label>
+            <Label htmlFor="typology">Tipología</Label>
             <select
-              id="tipology"
-              value={filters.tipology}
-              onChange={setFilter('tipology')}
+              id="typology"
+              value={filters.typology}
+              onChange={setFilter('typology')}
               className="flex h-10 w-44 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <option value="">Todas</option>
@@ -188,17 +185,6 @@ export default function IssuesPage() {
               value={filters.serviceNowTaskId}
               onChange={setFilter('serviceNowTaskId')}
               className="w-44"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="descripcion">Descripción</Label>
-            <Input
-              id="descripcion"
-              type="text"
-              placeholder="Texto libre..."
-              value={filters.descripcion}
-              onChange={setFilter('descripcion')}
-              className="w-52"
             />
           </div>
         </div>
@@ -270,8 +256,8 @@ function IssuesTable({ issues }: { issues: Issue[] }) {
             <TableHead>Tipología</TableHead>
             <TableHead>Descripción</TableHead>
             <TableHead>Usuario</TableHead>
-            <TableHead>Fecha inicio</TableHead>
-            <TableHead>Fecha fin</TableHead>
+            <TableHead>Entrega estimada</TableHead>
+            <TableHead>Última actualización</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -287,21 +273,21 @@ function IssuesTable({ issues }: { issues: Issue[] }) {
                 {issue.serviceNowTaskId ?? '—'}
               </TableCell>
               <TableCell>
-                {issue.tipology
-                  ? <Badge variant="secondary">{String(issue.tipology)}</Badge>
+                {issue.typology
+                  ? <Badge variant="secondary">{String(issue.typology)}</Badge>
                   : '—'}
               </TableCell>
-              <TableCell className="max-w-xs truncate text-sm" title={issue.descripcion}>
-                {issue.descripcion ?? '—'}
+              <TableCell className="max-w-xs truncate text-sm" title={issue.IssueType?.description}>
+                {issue.IssueType?.description ?? '—'}
               </TableCell>
               <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                {issue.customerUser ?? '—'}
+                {issue.customerIdUser ?? '—'}
               </TableCell>
               <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                {issue.startDate ? new Date(String(issue.startDate)).toLocaleString() : '—'}
+                {issue.deliverEstimated ? new Date(String(issue.deliverEstimated)).toLocaleString() : '—'}
               </TableCell>
               <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                {issue.endDate ? new Date(String(issue.endDate)).toLocaleString() : '—'}
+                {issue.lastStatusDate ? new Date(String(issue.lastStatusDate)).toLocaleString() : '—'}
               </TableCell>
             </TableRow>
           ))}

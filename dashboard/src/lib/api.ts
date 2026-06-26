@@ -218,11 +218,19 @@ export interface Issue {
   serviceNowId?: string;
   serviceNowTaskNumber?: string;
   serviceNowTaskId?: string;
-  tipology?: string;
-  descripcion?: string;
-  customerUser?: string;
-  startDate?: string;
-  endDate?: string;
+  typology?: string;
+  customerIdUser?: string;
+  status?: string;
+  deliverEstimated?: string;
+  lastStatusDate?: string;
+  IssueType?: { description?: string };
+  issuemsgs?: {
+    comment?: string;
+    extraCommens?: string;
+    technicianIdUser?: string;
+    timeStart?: string;
+    toStatus?: string;
+  }[];
   [key: string]: unknown;
 }
 
