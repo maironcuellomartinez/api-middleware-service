@@ -72,7 +72,9 @@ export default function DashboardPage() {
     }
 
     load();
-    return () => { cancelled.value = true; };
+
+    const interval = setInterval(() => loadLogs(cancelled), 60_000);
+    return () => { cancelled.value = true; clearInterval(interval); };
   }, []);
 
   if (loading) {
