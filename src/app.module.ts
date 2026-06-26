@@ -10,6 +10,7 @@ import { RecordsModule } from './records/records.module';
 import { GatewayModule } from './gateway/gateway.module';
 import { HealthModule } from './resilience/health/health.module';
 import { AdminModule } from './admin/admin.module';
+import { LogsModule } from './logs/logs.module';
 import { BulkheadModule, HttpBulkheadMiddleware } from '@backendkit-labs/bulkhead/nestjs';
 import { HttpLoggerMiddleware } from './common/http-logger.middleware';
 import { ExternalClientEntity } from './clients/entities/external-client.entity';
@@ -52,6 +53,7 @@ import configuration from './config/configuration';
         RecordsModule,
         HealthModule,
         AdminModule,
+        LogsModule,
     ],
     providers: [
         {

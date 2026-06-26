@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchClients, fetchHealth, fetchRecords, Client, HealthResponse, RequestRecord } from '../lib/api';
+import { fetchClients, fetchHealth, fetchLogs, Client, HealthResponse, RequestLog } from '../lib/api';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import {
@@ -23,21 +23,18 @@ interface DashboardData {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
-  const [recentRecords, setRecentRecords] = useState<RequestRecord[]>([]);
-  const [recordsError, setRecordsError] = useState<string | null>(null);
+  const [logs, setLogs] = useState<RequestLog[]>([]);
+  const [logsError, setLogsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadRecords = async (cancelled: { value: boolean }) => {
-    setRecordsError(null);
+  const loadLogs = async (cancelled: { value: boolean }) => {
+    setLogsError(null);
     try {
-      const records = await fetchRecords({ limit: 5 });
-      if (!cancelled.value) setRecentRecords(records.slice(0, 5));
-    } catch (err: unknown) {
-      if (!cancelled.value) {
-        const is503 = err instanceof Error && err.message.includes('503');
-        setRecordsError(is503 ? 'gateway-down' : 'error');
-      }
+      const data = await fetchLogs(30);
+      if (!cancelled.value) setLogs(data);
+    } catch {
+      if (!cancelled.value) setLogsError('error');
     }
   };
 
@@ -59,7 +56,7 @@ export default function DashboardPage() {
 
         setData({
           totalClients: clients.length,
-          activeClients: clients.filter((c) => c.isActive).length,
+          activeClients: clients.filter((c: Client) => c.isActive).length,
           healthStatus: health.status,
           uptime: `${hours}h ${minutes}m`,
         });
@@ -71,7 +68,7 @@ export default function DashboardPage() {
         if (!cancelled.value) setLoading(false);
       }
 
-      loadRecords(cancelled);
+      loadLogs(cancelled);
     }
 
     load();
@@ -85,22 +82,14 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}>
-              <CardHeader className="pb-2">
-                <Skeleton className="h-4 w-24" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-8 w-16" />
-              </CardContent>
+              <CardHeader className="pb-2"><Skeleton className="h-4 w-24" /></CardHeader>
+              <CardContent><Skeleton className="h-8 w-16" /></CardContent>
             </Card>
           ))}
         </div>
         <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-32" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-32 w-full" />
-          </CardContent>
+          <CardHeader><Skeleton className="h-6 w-32" /></CardHeader>
+          <CardContent><Skeleton className="h-32 w-full" /></CardContent>
         </Card>
       </div>
     );
@@ -169,12 +158,12 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Recent records */}
+      {/* Activity logs */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle>Recent Records</CardTitle>
+          <CardTitle>Actividad reciente</CardTitle>
           <button
-            onClick={() => loadRecords({ value: false })}
+            onClick={() => loadLogs({ value: false })}
             className="text-muted-foreground hover:text-foreground transition-colors"
             title="Actualizar"
           >
@@ -182,49 +171,58 @@ export default function DashboardPage() {
           </button>
         </CardHeader>
         <CardContent className="p-0">
-          {recordsError ? (
+          {logsError ? (
             <div className="px-6 py-8 text-center text-sm text-muted-foreground">
-              <p className="font-medium">
-                {recordsError === 'gateway-down' ? 'Gateway no disponible' : 'Error al cargar registros'}
-              </p>
-              <p className="mt-1 text-xs">
-                {recordsError === 'gateway-down'
-                  ? 'Los registros se cargarán cuando el api-gateway esté activo.'
-                  : 'No se pudieron obtener los registros recientes.'}
-              </p>
+              <p className="font-medium">No se pudieron obtener los logs</p>
               <button
-                onClick={() => loadRecords({ value: false })}
+                onClick={() => loadLogs({ value: false })}
                 className="mt-3 text-xs underline text-primary hover:opacity-80"
               >
                 Reintentar
               </button>
             </div>
-          ) : recentRecords.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Número</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Creado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentRecords.map((record) => (
-                  <TableRow key={record.id}>
-                    <TableCell className="font-mono text-xs">{record.requestNumber}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={record.status} />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {new Date(record.createdAt).toLocaleDateString()}
-                    </TableCell>
+          ) : logs.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Método</TableHead>
+                    <TableHead>URL</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Duración</TableHead>
+                    <TableHead>IP</TableHead>
+                    <TableHead>Fecha</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell>
+                        <MethodBadge method={log.method} />
+                      </TableCell>
+                      <TableCell className="font-mono text-xs max-w-xs truncate" title={log.url}>
+                        {log.url}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge code={log.statusCode} />
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {log.durationMs}ms
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {log.ip}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(log.timestamp).toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="px-6 py-8 text-center text-muted-foreground text-sm">
-              No records found
+              Sin actividad registrada. Las peticiones aparecerán aquí automáticamente.
             </div>
           )}
         </CardContent>
@@ -233,20 +231,30 @@ export default function DashboardPage() {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const variantMap: Record<string, 'success' | 'warning' | 'destructive' | 'info' | 'secondary'> = {
-    CREATED:     'info',
-    DELIVERED:   'info',
-    IN_PROGRESS: 'warning',
-    PAUSED:      'secondary',
-    CLOSED:      'secondary',
-    VALIDATED:   'success',
-    REOPENED:    'warning',
+function MethodBadge({ method }: { method: string }) {
+  const colors: Record<string, string> = {
+    GET:    'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400',
+    POST:   'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400',
+    PUT:    'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-400',
+    PATCH:  'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-400',
+    DELETE: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400',
   };
-
   return (
-    <Badge variant={variantMap[status.toUpperCase()] ?? 'secondary'}>
-      {status.replace('_', ' ')}
-    </Badge>
+    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${colors[method.toUpperCase()] ?? 'bg-muted text-muted-foreground'}`}>
+      {method.toUpperCase()}
+    </span>
+  );
+}
+
+function StatusBadge({ code }: { code: number }) {
+  const cls =
+    code >= 500 ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-400' :
+    code >= 400 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-400' :
+    code >= 300 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-400' :
+                  'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-400';
+  return (
+    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-semibold ${cls}`}>
+      {code}
+    </span>
   );
 }

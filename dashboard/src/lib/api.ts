@@ -213,6 +213,22 @@ export async function fetchRecordByNumber(number: string): Promise<unknown> {
   return data;
 }
 
+export interface RequestLog {
+  id: number;
+  method: string;
+  url: string;
+  statusCode: number;
+  durationMs: number;
+  ip: string;
+  userAgent: string;
+  timestamp: string;
+}
+
+export async function fetchLogs(limit = 30): Promise<RequestLog[]> {
+  const { data } = await api.get<RequestLog[]>('/v1/logs', { params: { limit } });
+  return data;
+}
+
 export interface Issue {
   id?: string | number;
   serviceNowId?: string;
