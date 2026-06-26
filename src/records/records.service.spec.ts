@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { RecordsService } from './records.service';
 import { GatewayClient } from '../gateway/gateway.client';
 import { ListRequestsDto } from './dto/list-records.dto';
+import { ListIssuesDto } from './dto/list-issues.dto';
 
 describe('RecordsService', () => {
     let service: RecordsService;
@@ -11,6 +12,7 @@ describe('RecordsService', () => {
         gateway = {
             getRequestByNumber: jest.fn(),
             listRequests:       jest.fn(),
+            getIssues:          jest.fn(),
             getStatus:          jest.fn(),
         } as any;
 
@@ -106,6 +108,62 @@ describe('RecordsService', () => {
             gateway.listRequests.mockRejectedValue(new Error('Gateway unavailable'));
 
             await expect(service.listRequests(query)).rejects.toThrow('Gateway unavailable');
+        });
+    });
+
+    describe('getIssues', () => {
+        it('should delegate to gateway.getIssues with all params', async () => {
+            const query: ListIssuesDto = {
+                startDate:            '2026-01-01T00:00:00.000Z',
+                endDate:              '2026-12-31T23:59:59.999Z',
+                serviceNowId:         'INC0001234',
+                serviceNowTaskNumber: 'TASK0001234',
+                serviceNowTaskId:     'abc123',
+                tipology:             'ONBOARDING',
+                customerUser:         'user@example.com',
+            };
+
+            const mockResponse = [{ serviceNowId: 'INC0001234', typology: 'ONBOARDING' }];
+            gateway.getIssues.mockResolvedValue(mockResponse);
+
+            const result = await service.getIssues(query);
+
+            expect(gateway.getIssues).toHaveBeenCalledWith({
+                startDate:            '2026-01-01T00:00:00.000Z',
+                endDate:              '2026-12-31T23:59:59.999Z',
+                serviceNowId:         'INC0001234',
+                serviceNowTaskNumber: 'TASK0001234',
+                serviceNowTaskId:     'abc123',
+                tipology:             'ONBOARDING',
+                customerUser:         'user@example.com',
+            });
+            expect(result).toEqual(mockResponse);
+        });
+
+        it('should only include defined params in the call', async () => {
+            const query: ListIssuesDto = { startDate: '2026-01-01T00:00:00.000Z' };
+            gateway.getIssues.mockResolvedValue([]);
+
+            await service.getIssues(query);
+
+            expect(gateway.getIssues).toHaveBeenCalledWith({
+                startDate: '2026-01-01T00:00:00.000Z',
+            });
+        });
+
+        it('should handle empty query (no filters)', async () => {
+            const query: ListIssuesDto = {};
+            gateway.getIssues.mockResolvedValue([]);
+
+            await service.getIssues(query);
+
+            expect(gateway.getIssues).toHaveBeenCalledWith({});
+        });
+
+        it('should propagate errors from gateway', async () => {
+            gateway.getIssues.mockRejectedValue(new Error('Issues service unavailable'));
+
+            await expect(service.getIssues({})).rejects.toThrow('Issues service unavailable');
         });
     });
 
