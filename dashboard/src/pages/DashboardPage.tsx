@@ -51,7 +51,7 @@ export default function DashboardPage() {
           fetchHealth(),
         ]);
 
-        if (cancelled) return;
+        if (cancelled.value) return;
 
         const uptimeSeconds = Math.floor(Number(health.uptime) || 0);
         const hours = Math.floor(uptimeSeconds / 3600);
