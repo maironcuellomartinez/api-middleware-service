@@ -26,6 +26,7 @@
     },
     "incremental": false,
     "skipLibCheck": true,
+    "types": ["jest", "node"],
     "strictNullChecks": true,
     "noImplicitAny": true,
     "strict": true,
