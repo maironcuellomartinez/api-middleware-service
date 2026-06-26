@@ -24,7 +24,7 @@ import { AdminModule } from '../admin/admin.module';
             inject: [ConfigService],
             useFactory: (config: ConfigService) => ({
                 secret: config.get<string>('jwt.secret')!,
-                signOptions: { issuer: 'api-middleware-service', audience: 'external-clients' },
+                signOptions: { issuer: 'api_oauth_proxy', audience: 'external-clients' },
             }),
         }),
     ],

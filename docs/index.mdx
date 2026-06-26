@@ -6,7 +6,7 @@
 
 ## Descripcion
 
-`api-middleware-service` es un middleware de autenticacion y autorizacion construido con **NestJS** que actua como intermediario entre aplicaciones externas y un api-gateway interno (Event Corner). Implementa el flujo **OAuth2 client_credentials** con JWT local, gestion de clientes externos con bcrypt, y una capa de resiliencia de 3 niveles.
+`api_oauth_proxy` es un middleware de autenticacion y autorizacion construido con **NestJS** que actua como intermediario entre aplicaciones externas y un api-gateway interno (Event Corner). Implementa el flujo **OAuth2 client_credentials** con JWT local, gestion de clientes externos con bcrypt, y una capa de resiliencia de 3 niveles.
 
 ## Stack tecnologico
 
@@ -29,7 +29,7 @@ Aplicacion Externa
        │
        ▼
 ┌─────────────────────────────────────────────┐
-│         api-middleware-service               │
+│         api_oauth_proxy               │
 │                                             │
 │  POST /oauth/token  (client_credentials)    │
 │       │                                     │

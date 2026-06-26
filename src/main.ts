@@ -82,7 +82,7 @@ async function bootstrap() {
 
     const port = process.env.PORT ?? 3007;
     await app.listen(port);
-    logger.log(`api-middleware-service [${env}] corriendo en puerto ${port}`);
+    logger.log(`api_oauth_proxy [${env}] corriendo en puerto ${port}`);
 }
 bootstrap();
  

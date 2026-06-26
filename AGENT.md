@@ -1,4 +1,4 @@
-# AGENT.md — api-middleware-service
+# AGENT.md — api_oauth_proxy
 
 > Instrucciones para DeepSeek Code en este proyecto.
 > Leído al arrancar: su contenido se inyecta en el system prompt del agente.

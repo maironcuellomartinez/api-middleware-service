@@ -24,7 +24,7 @@ export class AccessTokenGuard implements CanActivate {
         try {
             const payload = this.jwt.verify(token, {
                 secret,
-                issuer: 'api-middleware-service',
+                issuer: 'api_oauth_proxy',
                 audience: 'external-clients',
             }) as any;
             if (payload.type !== 'external_client') {

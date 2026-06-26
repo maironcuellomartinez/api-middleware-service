@@ -9,7 +9,7 @@ flowchart TB
     ADMIN["Administrador\n[person]"]
   end
 
-  subgraph MW["api-middleware-service\n[NestJS :3007]"]
+  subgraph MW["api_oauth_proxy\n[NestJS :3007]"]
     direction TB
     AUTH["AuthModule\nOAuth2 + JWT"]
     CLIENTS["ClientsModule\nCRUD clientes"]
@@ -122,7 +122,7 @@ El refresh token sigue el esquema de rotation con deteccion de reuse attack reco
 sequenceDiagram
   autonumber
   actor App as App externa
-  participant MW as api-middleware-service
+  participant MW as api_oauth_proxy
   participant DB as MySQL
 
   App->>MW: POST /oauth/refresh { refresh_token }

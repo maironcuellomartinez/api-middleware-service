@@ -1,4 +1,4 @@
-# api-middleware-service
+# api_oauth_proxy
 
 Proxy OAuth2 para aplicaciones externas que necesitan consultar incidencias y solicitudes de Event Corner. Emite y valida tokens JWT localmente (HS256 + MySQL) sin depender de un servidor OAuth externo.
 

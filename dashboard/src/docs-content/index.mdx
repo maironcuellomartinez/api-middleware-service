@@ -6,7 +6,7 @@
 
 ## Descripcion
 
-`api-middleware-service` es un servicio de autenticacion y autorizacion construido con **NestJS**. Actua como intermediario entre aplicaciones externas y el api-gateway interno. Implementa **OAuth2 client_credentials** con JWT local, gestion de clientes con bcrypt, y resiliencia en 3 niveles independientes.
+`api_oauth_proxy` es un servicio de autenticacion y autorizacion construido con **NestJS**. Actua como intermediario entre aplicaciones externas y el api-gateway interno. Implementa **OAuth2 client_credentials** con JWT local, gestion de clientes con bcrypt, y resiliencia en 3 niveles independientes.
 
 <Alert>
   <AlertTitle>Sin base de datos de negocio</AlertTitle>
@@ -25,7 +25,7 @@ flowchart LR
     EXT["App externa\n(client_id / client_secret)"]
   end
 
-  subgraph MW["api-middleware-service :3007"]
+  subgraph MW["api_oauth_proxy :3007"]
     AUTH["AuthModule\nPOST /oauth/token"]
     GUARD["AccessTokenGuard\nvalida Bearer JWT"]
     PROXY["RecordsModule\nGET /v1/requests/*"]
@@ -176,7 +176,7 @@ flowchart LR
 sequenceDiagram
   autonumber
   actor App as App externa
-  participant MW as api-middleware-service
+  participant MW as api_oauth_proxy
   participant DB as MySQL
 
   Note over App,DB: Registro inicial (solo admin)
