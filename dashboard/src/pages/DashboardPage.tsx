@@ -12,7 +12,7 @@ import {
 } from '../components/ui/table';
 import { Skeleton } from '../components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '../components/ui/alert';
-import { Users, UserCheck, Activity, Clock } from 'lucide-react';
+import { Users, UserCheck, Activity, Clock, RefreshCw } from 'lucide-react';
 
 interface DashboardData {
   totalClients: number;
@@ -31,7 +31,7 @@ export default function DashboardPage() {
   const loadRecords = async (cancelled: { value: boolean }) => {
     setRecordsError(null);
     try {
-      const records = await fetchRecords({ limit: '5' });
+      const records = await fetchRecords({ limit: 5 });
       if (!cancelled.value) setRecentRecords((records as RequestRecord[]).slice(0, 5));
     } catch (err: unknown) {
       if (!cancelled.value) {
@@ -171,8 +171,15 @@ export default function DashboardPage() {
 
       {/* Recent records */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle>Recent Records</CardTitle>
+          <button
+            onClick={() => loadRecords({ value: false })}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title="Actualizar"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </button>
         </CardHeader>
         <CardContent className="p-0">
           {recordsError ? (
