@@ -3,7 +3,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { ClientsService } from '../clients/clients.service';
@@ -25,6 +25,7 @@ describe('AuthService', () => {
     let jwtService: jest.Mocked<JwtService>;
     let configService: jest.Mocked<ConfigService>;
     let refreshRepo: jest.Mocked<Repository<RefreshTokenEntity>>;
+    let dataSource: any;
 
     const mockClient: ExternalClientEntity = {
         clientId:               'mc_abc123',
@@ -71,12 +72,19 @@ describe('AuthService', () => {
             update:  jest.fn(),
         } as any;
 
+        dataSource = {
+            transaction: jest.fn().mockImplementation(async (cb: (manager: any) => Promise<void>) => {
+                await cb({ save: jest.fn().mockResolvedValue({}) });
+            }),
+        };
+
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 AuthService,
-                { provide: ClientsService, useValue: clientsService },
-                { provide: JwtService,     useValue: jwtService },
-                { provide: ConfigService,  useValue: configService },
+                { provide: ClientsService,  useValue: clientsService },
+                { provide: JwtService,      useValue: jwtService },
+                { provide: ConfigService,   useValue: configService },
+                { provide: DataSource,      useValue: dataSource },
                 { provide: getRepositoryToken(RefreshTokenEntity), useValue: refreshRepo },
             ],
         }).compile();
@@ -107,11 +115,12 @@ describe('AuthService', () => {
             );
             expect(jwtService.sign).toHaveBeenNthCalledWith(
                 1,
-                {
+                expect.objectContaining({
+                    jti:        expect.any(String),
                     sub:        'mc_abc123',
                     type:       'external_client',
                     clientName: 'Test App',
-                },
+                }),
                 { expiresIn: 3600 },
             );
             expect(result).toEqual({
@@ -337,6 +346,7 @@ describe('AuthService', () => {
         };
 
         beforeEach(() => {
+            mockStoredToken.revokedAt = null;
             (bcrypt.hash as jest.Mock).mockResolvedValue('$2a$10$newrefreshtokenhash');
             refreshRepo.create.mockReturnValue({} as RefreshTokenEntity);
             refreshRepo.save.mockResolvedValue({} as RefreshTokenEntity);
@@ -345,7 +355,6 @@ describe('AuthService', () => {
         it('should return a new token pair when refresh token is valid', async () => {
             jwtService.verify.mockReturnValue(mockPayload);
             refreshRepo.findOne.mockResolvedValue(mockStoredToken);
-            (bcrypt.compare as jest.Mock).mockResolvedValue(true);
             clientsService.findOne.mockResolvedValue({
                 clientId: 'mc_abc123',
                 name: 'Test App',
@@ -362,9 +371,8 @@ describe('AuthService', () => {
 
             expect(jwtService.verify).toHaveBeenCalledWith('valid.jwt.refresh');
             expect(refreshRepo.findOne).toHaveBeenCalledWith({
-                where: { clientId: 'mc_abc123', jtiHash: expect.any(String), revokedAt: expect.any(Object) },
+                where: { clientId: 'mc_abc123', jtiHash: expect.any(String) },
             });
-            expect(bcrypt.compare).toHaveBeenCalledWith('uuid-jti', '$2a$10$storedhash');
             expect(result).toEqual({
                 access_token:  'new.jwt.token',
                 refresh_token: 'new.jwt.token',
@@ -415,18 +423,20 @@ describe('AuthService', () => {
             );
         });
 
-        it('should throw UnauthorizedException and revoke all tokens on hash mismatch (reuse attack)', async () => {
+        it('should throw UnauthorizedException and revoke all tokens when token was already revoked (reuse attack)', async () => {
+            // El token ya fue revocado previamente — indica posible reuse attack
+            const revokedToken = { ...mockStoredToken, revokedAt: new Date('2025-06-01') };
             jwtService.verify.mockReturnValue(mockPayload);
-            refreshRepo.findOne.mockResolvedValue(mockStoredToken);
-            (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+            refreshRepo.findOne.mockResolvedValue(revokedToken);
+            refreshRepo.update.mockResolvedValue({ affected: 1 } as any);
 
             await expect(service.refreshToken(validRefreshDto)).rejects.toThrow(
                 UnauthorizedException,
             );
 
-            // Debe revocar todos los tokens del cliente
+            // Debe revocar todos los tokens activos del cliente
             expect(refreshRepo.update).toHaveBeenCalledWith(
-                { clientId: 'mc_abc123', revokedAt: expect.any(Object) },
+                { clientId: 'mc_abc123', revokedAt: IsNull() },
                 { revokedAt: expect.any(Date) },
             );
         });
@@ -463,9 +473,9 @@ describe('AuthService', () => {
 
             await service.refreshToken(validRefreshDto);
 
-            // El token almacenado debe tener revokedAt seteado
+            // El token almacenado debe tener revokedAt seteado (la transacción ejecuta el callback)
             expect(mockStoredToken.revokedAt).toBeInstanceOf(Date);
-            expect(refreshRepo.save).toHaveBeenCalledWith(mockStoredToken);
+            expect(dataSource.transaction).toHaveBeenCalled();
         });
 
         it('should use client-specific tokenExpiresInSeconds for new access token', async () => {

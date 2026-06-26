@@ -200,14 +200,14 @@ describe('GatewayClient', () => {
 
         it('should throw generic HttpException when upstream has no message', async () => {
             const error = new AxiosError();
-            error.response = { status: 502, data: {} } as any;
+            error.response = { status: 502, data: null } as any;
             httpService.get.mockReturnValue(throwError(() => error));
 
             try {
                 await (client as any)._httpGet('http://gateway:3000/test');
             } catch (e: any) {
                 expect(e.getStatus()).toBe(502);
-                expect(e.message).toBe('Error del api-gateway (502)');
+                expect((e.getResponse() as any).message).toBe('Error del api-gateway (502)');
             }
         });
 

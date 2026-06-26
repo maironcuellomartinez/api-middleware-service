@@ -61,7 +61,9 @@ describe('AccessTokenGuard', () => {
                 clientName: 'Test App',
             });
             expect(jwtService.verify).toHaveBeenCalledWith('valid.jwt.token', {
-                secret: 'my-secret',
+                secret:   'my-secret',
+                issuer:   'api_oauth_proxy',
+                audience: 'external-clients',
             });
         });
 

@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { ClientsService } from './clients.service';
 import { ExternalClientEntity } from './entities/external-client.entity';
+import { RefreshTokenEntity } from '../auth/entities/refresh-token.entity';
 import { CreateClientDto } from './dto/create-client.dto';
 
 // Mock de bcrypt para evitar el costo real de hashing
@@ -28,6 +29,7 @@ function hexFromByte(byte: number, length: number): string {
 describe('ClientsService', () => {
     let service: ClientsService;
     let repo: jest.Mocked<Repository<ExternalClientEntity>>;
+    let tokenRepo: jest.Mocked<Repository<RefreshTokenEntity>>;
 
     function createMockEntity(overrides?: Partial<ExternalClientEntity>): ExternalClientEntity {
         return {
@@ -54,12 +56,22 @@ describe('ClientsService', () => {
             delete:         jest.fn(),
         } as any;
 
+        tokenRepo = {
+            find:   jest.fn(),
+            delete: jest.fn(),
+            update: jest.fn(),
+        } as any;
+
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 ClientsService,
                 {
-                    provide: getRepositoryToken(ExternalClientEntity),
+                    provide:  getRepositoryToken(ExternalClientEntity),
                     useValue: repo,
+                },
+                {
+                    provide:  getRepositoryToken(RefreshTokenEntity),
+                    useValue: tokenRepo,
                 },
             ],
         }).compile();
