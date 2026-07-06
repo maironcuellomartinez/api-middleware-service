@@ -23,25 +23,5 @@ module.exports = {
         NODE_ENV: 'production',
       },
     },
-    {
-      // Sirve el build de dashboard/dist con `vite preview`, que hereda el
-      // proxy /api -> localhost:3007 de vite.config.ts. Requiere haber
-      // ejecutado `npm run build` dentro de dashboard/ antes de arrancar.
-      name: 'dashboard',
-      cwd: './dashboard',
-      script: 'npm',
-      args: 'run preview -- --host --port 4173',
-      instances: 1,
-      exec_mode: 'fork',
-      autorestart: true,
-      watch: false,
-      max_memory_restart: '256M',
-      env_staging: {
-        NODE_ENV: 'staging',
-      },
-      env_production: {
-        NODE_ENV: 'production',
-      },
-    },
   ],
 };
