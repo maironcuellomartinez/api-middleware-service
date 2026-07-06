@@ -1,4 +1,4 @@
-// scripts/bootstrap-schema.ts
+// src/scripts/bootstrap-schema.ts
 // Bootstrap manual del esquema de middleware_db, usando el mismo AppDataSource
 // que ya define src/database/data-source.ts (misma config de conexion y de
 // .env.<NODE_ENV> que usa el resto del proyecto).
@@ -8,13 +8,20 @@
 // tenga Node y conexion directa a la base (por ejemplo, apuntando DB_HOST al
 // host remoto via variables de entorno).
 //
-// Uso:
-//   npx ts-node -r tsconfig-paths/register scripts/bootstrap-schema.ts
+// Vive en src/ (no en scripts/ suelto) para que `nest build` lo compile junto
+// con el resto a dist/scripts/*.js — asi el paquete de deploy.js lo incluye
+// automaticamente y en el servidor corre con `node` puro, sin ts-node.
+//
+// Uso en desarrollo (ts-node):
+//   npx ts-node -r tsconfig-paths/register src/scripts/bootstrap-schema.ts
+//
+// Uso ya compilado (en el servidor, sin ts-node):
+//   node dist/scripts/bootstrap-schema.js
 //
 //   # apuntando a un host remoto sin tocar los .env del repo:
 //   DB_HOST=<host-remoto> DB_PORT=3306 DB_USERNAME=<user> DB_PASSWORD=<pass> \
 //   DB_DATABASE=middleware_db NODE_ENV=production \
-//   npx ts-node -r tsconfig-paths/register scripts/bootstrap-schema.ts
+//   node dist/scripts/bootstrap-schema.js
 //
 // Representa, en orden, las migraciones ya existentes en src/migrations/:
 //   1740000000000-InitialSchema
@@ -26,7 +33,7 @@
 // se puede correr `npm run migration:run` contra esta misma base, TypeORM
 // detecte que ya estan aplicadas y no intente re-ejecutarlas.
 
-import { AppDataSource } from '../src/database/data-source';
+import { AppDataSource } from '../database/data-source';
 
 async function main() {
     await AppDataSource.initialize();

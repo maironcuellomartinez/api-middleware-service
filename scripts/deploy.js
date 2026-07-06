@@ -29,9 +29,17 @@ function askInteractive(question) {
     });
 }
 
+// Flags tipo --skip-migrations se filtran aparte del argumento posicional del entorno,
+// para que "node deploy.js production --skip-migrations" y
+// "node deploy.js --skip-migrations production" funcionen igual.
+const CLI_ARGS = process.argv.slice(2);
+const CLI_FLAGS = CLI_ARGS.filter(a => a.startsWith('--'));
+const CLI_POSITIONAL = CLI_ARGS.filter(a => !a.startsWith('--'));
+const SKIP_MIGRATIONS = CLI_FLAGS.includes('--skip-migrations');
+
 async function resolveEnv() {
     // Argumento CLI: node deploy.js staging
-    const arg = process.argv[2];
+    const arg = CLI_POSITIONAL[0];
     if (arg) {
         if (!VALID_ENVS.includes(arg)) {
             console.error(`Entorno invalido: "${arg}". Opciones: ${VALID_ENVS.join(', ')}`);
@@ -78,7 +86,7 @@ async function main() {
     console.log(`ZIP:      ${zipPath}`);
 
     // Confirmacion solo en modo interactivo
-    if (!process.argv[2]) {
+    if (CLI_POSITIONAL.length === 0) {
         const confirm = await askInteractive('\nConfirmar? [s/n]: ');
         if (confirm !== 's') {
             console.log('\nCancelado.');
@@ -123,10 +131,27 @@ async function main() {
     execSync('npm install --omit=dev', { cwd: outputDir, stdio: 'inherit' });
     ok('node_modules instalado');
 
-    // 4. Ejecutar migraciones pendientes
-    step('Ejecutando migraciones (migration:run:dist)...');
-    execSync('npm run migration:run:dist', { cwd: outputDir, stdio: 'inherit', env: { ...process.env, NODE_ENV: env } });
-    ok('Migraciones aplicadas');
+    // 4. Ejecutar migraciones pendientes (opcional y no fatal — no siempre hay
+    // conectividad a la base desde la maquina que arma el paquete de deploy)
+    if (SKIP_MIGRATIONS) {
+        step('Migraciones omitidas (--skip-migrations)');
+        console.log('  Recorda aplicarlas donde SI haya conectividad a la base, por ejemplo:');
+        console.log('    node dist/scripts/bootstrap-schema.js   (crea el esquema si no existe, idempotente)');
+        console.log('    npm run migration:run                   (si tenes acceso real a correr migraciones)');
+    } else {
+        step('Ejecutando migraciones (migration:run:dist)...');
+        try {
+            execSync('npm run migration:run:dist', { cwd: outputDir, stdio: 'inherit', env: { ...process.env, NODE_ENV: env } });
+            ok('Migraciones aplicadas');
+        } catch (error) {
+            console.warn('\n  ADVERTENCIA: no se pudieron correr las migraciones desde esta maquina.');
+            console.warn('  Motivo probable: sin conectividad de red hacia la base de datos de destino.');
+            console.warn('  El paquete se genera igual — antes de arrancar el servicio, corre en un lugar');
+            console.warn('  con acceso a la base:');
+            console.warn('    node dist/scripts/bootstrap-schema.js   (crea el esquema si no existe, idempotente)');
+            console.warn('    npm run migration:run                   (o las migraciones reales, si hay acceso)\n');
+        }
+    }
 
     // 6. Crear ZIP
     step(`Creando ${outputDirName}.zip...`);
@@ -149,7 +174,11 @@ async function main() {
     console.log(`  ZIP     : ${zipPath}`);
     console.log('');
     console.log('Para iniciar en el servidor:');
-    console.log('  npm run migration:run   # solo si hay migraciones pendientes');
+    if (SKIP_MIGRATIONS) {
+        console.log('  node dist/scripts/bootstrap-schema.js   # migraciones omitidas — esquema via bootstrap');
+    } else {
+        console.log('  npm run migration:run   # solo si hay migraciones pendientes o no se pudieron aplicar antes');
+    }
     console.log(`  pm2 start ecosystem.config.js --env ${env}`);
     console.log('  pm2 save');
     console.log('');

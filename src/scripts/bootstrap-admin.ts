@@ -1,29 +1,37 @@
-// scripts/bootstrap-admin.ts
+// src/scripts/bootstrap-admin.ts
 // Crea el primer administrador directamente contra la base, sin necesitar que
 // el servidor HTTP este levantado (equivalente a POST /admin/setup, misma
 // logica que AdminService.setup(): bcrypt con 12 rounds, solo funciona si no
 // existe ningun admin todavia).
 //
-// Uso (interactivo — pide username y password por consola):
-//   npx ts-node -r tsconfig-paths/register scripts/bootstrap-admin.ts
+// Vive en src/ (no en scripts/ suelto) para que `nest build` lo compile junto
+// con el resto a dist/scripts/*.js — asi el paquete de deploy.js lo incluye
+// automaticamente y en el servidor corre con `node` puro, sin ts-node.
+//
+// Uso en desarrollo (interactivo — pide username y password por consola):
+//   npx ts-node -r tsconfig-paths/register src/scripts/bootstrap-admin.ts
 //
 //   # no interactivo, para CI/deploy sin TTY:
 //   ADMIN_FORCE=true ADMIN_USERNAME=admin ADMIN_PASSWORD=algo-seguro-12+chars \
-//   npx ts-node -r tsconfig-paths/register scripts/bootstrap-admin.ts
+//   npx ts-node -r tsconfig-paths/register src/scripts/bootstrap-admin.ts
+//
+// Uso ya compilado (en el servidor, sin ts-node):
+//   ADMIN_FORCE=true ADMIN_USERNAME=admin ADMIN_PASSWORD=algo-seguro \
+//   node dist/scripts/bootstrap-admin.js
 //
 //   # apuntando a un host remoto sin tocar los .env del repo:
 //   DB_HOST=<host-remoto> DB_USERNAME=<user> DB_PASSWORD=<pass> DB_DATABASE=middleware_db \
 //   NODE_ENV=production ADMIN_FORCE=true ADMIN_USERNAME=admin ADMIN_PASSWORD=algo-seguro \
-//   npx ts-node -r tsconfig-paths/register scripts/bootstrap-admin.ts
+//   node dist/scripts/bootstrap-admin.js
 //
-// Requiere que la tabla `admins` ya exista (correr antes scripts/bootstrap-schema.ts
+// Requiere que la tabla `admins` ya exista (correr antes bootstrap-schema.ts
 // o npm run migration:run). Idempotente: si ya hay un admin, no hace nada y avisa.
 
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
 import * as readline from 'readline';
-import { AppDataSource } from '../src/database/data-source';
-import { AdminEntity } from '../src/admin/entities/admin.entity';
+import { AppDataSource } from '../database/data-source';
+import { AdminEntity } from '../admin/entities/admin.entity';
 
 const BCRYPT_ROUNDS = 12; // igual que AdminService
 
