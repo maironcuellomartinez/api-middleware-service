@@ -17,6 +17,8 @@
     "migration:run:prod": "cross-env NODE_ENV=production typeorm migration:run -d dist/database/data-source.js",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
     "migration:show": "typeorm-ts-node-commonjs migration:show -d src/database/data-source.ts",
+    "bootstrap:schema": "ts-node -r tsconfig-paths/register scripts/bootstrap-schema.ts",
+    "bootstrap:admin": "ts-node -r tsconfig-paths/register scripts/bootstrap-admin.ts",
     "pm2:start:staging": "npm run build && pm2 start ecosystem.config.js --env staging",
     "pm2:start:prod": "npm run build && pm2 start ecosystem.config.js --env production",
     "pm2:reload": "pm2 reload ecosystem.config.js",
