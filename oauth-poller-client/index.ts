@@ -26,6 +26,7 @@ interface Config {
     clientSecret: string;
     scope?: string;
     pollIntervalMs: number;
+    lookbackDays: number;
     caCertPath?: string;
     insecureSkipTlsVerify: boolean;
 }
@@ -66,6 +67,12 @@ function loadConfig(): Config {
         clientSecret,
         scope: process.env.MW_SCOPE,
         pollIntervalMs: Number(process.env.MW_POLL_INTERVAL_MS ?? 5 * 60_000),
+        // Cuanto pedir "hacia atras" para dateFrom, en dias — independiente
+        // de MW_POLL_INTERVAL_MS (que solo controla cada cuanto se corre el
+        // ciclo, no cuanto historial trae cada consulta). Con una ventana de
+        // solo minutos, la mayoria de las corridas no traen datos porque no
+        // suele haber citas creadas/actualizadas en un margen tan chico.
+        lookbackDays: Number(process.env.MW_LOOKBACK_DAYS ?? 1),
         caCertPath,
         insecureSkipTlsVerify,
     };
@@ -204,15 +211,16 @@ function endOfDayUTC(d: Date): Date {
 
 /**
  * dateFrom = "ahora" (o el piso, si el reloj esta atrasado) menos
- * minutesBack — igual que siempre. dateTo = fin del dia actual
- * (23:59:59.999 UTC), no "ahora": asi cubre tambien las citas del resto
- * del dia, no solo lo transcurrido desde el ciclo anterior.
+ * daysBack dias — no minutos: una ventana de minutos casi siempre trae 0
+ * resultados porque rara vez hay una cita creada/actualizada en un margen
+ * tan chico. dateTo = fin del dia actual (23:59:59.999 UTC), no "ahora":
+ * asi cubre tambien las citas del resto del dia.
  */
-export function buildWindow(minutesBack: number, now = new Date()): DateWindow {
+export function buildWindow(daysBack: number, now = new Date()): DateWindow {
     const clampedNow = now.getTime() < MIN_VALID_DATE.getTime() ? MIN_VALID_DATE : now;
     const end = endOfDayUTC(clampedNow);
 
-    const rawStart = new Date(clampedNow.getTime() - minutesBack * 60_000);
+    const rawStart = new Date(clampedNow.getTime() - daysBack * 24 * 60 * 60_000);
     const start = rawStart.getTime() < MIN_VALID_DATE.getTime() ? MIN_VALID_DATE : rawStart;
 
     // Mismo formato ISO 8601 completo (con hora/zona) que MIN_VALID_DATE,
@@ -231,11 +239,10 @@ interface QueryJob {
 
 /**
  * Arma la (unica) consulta contra /v1/requests de cada corrida: una sola
- * ventana combinada de "ultimos N minutos" (N = intervalo de polling). Como
- * dateFrom/dateTo son timestamps completos (no recortados a un dia), la
- * ventana puede caer dentro del mismo dia o cruzar la medianoche hacia el
- * dia anterior/siguiente segun a que hora corra — sin necesidad de mandar
- * mas de una peticion por ciclo.
+ * ventana combinada de "ultimos N dias" (N = MW_LOOKBACK_DAYS, independiente
+ * del intervalo de polling — el intervalo controla cada cuanto se corre el
+ * ciclo, no cuanto historial trae cada consulta). dateTo siempre es el fin
+ * del dia actual.
  *
  * startDate es obligatorio en el backend real (confirmado contra staging) y
  * debe ser >= MIN_VALID_DATE — por eso siempre se manda, tomado de la
@@ -243,10 +250,9 @@ interface QueryJob {
  * si se mandan se validan (confirmado: status/page/limit en su formato
  * actual pasan sin error).
  */
-function buildQueries(now: Date, pollIntervalMs: number): QueryJob[] {
-    const minutesBack = Math.ceil(pollIntervalMs / 60_000);
+function buildQueries(now: Date, lookbackDays: number): QueryJob[] {
     return [
-        { name: `requests ultimos ${minutesBack}min`, window: buildWindow(minutesBack, now) },
+        { name: `requests ultimos ${lookbackDays}d`, window: buildWindow(lookbackDays, now) },
     ];
 }
 
@@ -310,8 +316,8 @@ function logEntry(entry: {
     fs.appendFileSync(LOG_FILE, line + '\n', 'utf-8');
 }
 
-async function runQueries(client: OAuth2Client, pollIntervalMs: number): Promise<void> {
-    const jobs = buildQueries(new Date(), pollIntervalMs);
+async function runQueries(client: OAuth2Client, lookbackDays: number): Promise<void> {
+    const jobs = buildQueries(new Date(), lookbackDays);
 
     for (const job of jobs) {
         const startedAt = Date.now();
@@ -355,14 +361,15 @@ async function main(): Promise<void> {
 
     console.log(
         `Iniciando poller contra ${config.baseUrl} `
-        + `(cada ${Math.round(config.pollIntervalMs / 1000)}s, client_id=${config.clientId})`,
+        + `(cada ${Math.round(config.pollIntervalMs / 1000)}s, `
+        + `lookback=${config.lookbackDays}d, client_id=${config.clientId})`,
     );
 
     // Cada query ya atrapa sus propios errores en logEntry(); este catch es
     // solo una red de seguridad para que un fallo no previsto no tumbe el
     // proceso mientras corre desatendido.
     const tick = () => {
-        runQueries(client, config.pollIntervalMs).catch((err) => {
+        runQueries(client, config.lookbackDays).catch((err) => {
             logEntry({
                 query: 'runQueries (fallo inesperado, ver stack en logs/poller.log)',
                 params: {},

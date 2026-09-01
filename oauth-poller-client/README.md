@@ -48,7 +48,8 @@ Variables (`.env`):
 | `MW_CLIENT_ID`          | `client_id` del cliente OAuth2 (empieza con `mc_`)         | *(requerida)*        |
 | `MW_CLIENT_SECRET`      | `client_secret` del cliente OAuth2                         | *(requerida)*        |
 | `MW_SCOPE`              | Scope(s) a solicitar, separados por espacio                | *(sin scope)*         |
-| `MW_POLL_INTERVAL_MS`   | Intervalo de polling en milisegundos                        | `300000` (5 min)     |
+| `MW_POLL_INTERVAL_MS`   | Cada cuanto se corre el ciclo, en milisegundos               | `300000` (5 min)     |
+| `MW_LOOKBACK_DAYS`      | Cuantos días hacia atrás pedir en `dateFrom` (independiente del intervalo) | `1`     |
 | `MW_CA_CERT_PATH`       | Ruta a un certificado CA a confiar puntualmente (ver abajo) | *(opcional)*          |
 | `MW_INSECURE_SKIP_TLS_VERIFY` | Desactiva la verificación TLS por completo (ver abajo) — **peligroso** | `false`         |
 
@@ -164,8 +165,11 @@ el entorno donde lo dejes corriendo.
    Ante un 401 inesperado en una consulta, fuerza reautenticación y
    reintenta una vez.
 3. **Ventana de fechas** — cada ciclo calcula, en formato ISO 8601 completo:
-   - `dateFrom` = ahora menos N minutos (N = intervalo de polling) — igual
-     que siempre, cubre lo transcurrido desde el ciclo anterior.
+   - `dateFrom` = ahora menos `MW_LOOKBACK_DAYS` **días** (no minutos —
+     independiente de `MW_POLL_INTERVAL_MS`, que solo controla cada cuánto
+     se corre el ciclo). Con una ventana de solo minutos, casi todas las
+     corridas dan `count=0` porque rara vez hay una cita creada/actualizada
+     en un margen tan chico.
    - `dateTo` = **fin del día actual** (`23:59:59.999Z`), no "ahora" — así
      la consulta también trae las citas programadas para el resto del día,
      no solo lo ya sucedido.
@@ -187,8 +191,8 @@ Cada petición deja una línea en `logs/poller.log` (se crea solo, ignorado
 en git) y también se imprime en consola:
 
 ```
-[2026-09-01T13:50:27.532Z] OK    requests ultimos 5min params={"dateFrom":"2026-09-01T13:45:27.532Z","dateTo":"2026-09-01T23:59:59.999Z"} duration=149ms count=1
-[2026-09-01T13:52:14.913Z] ERROR requests ultimos 5min params={"dateFrom":"2026-09-01T13:47:14.913Z","dateTo":"2026-09-01T23:59:59.999Z"} duration=218ms message="ECONNREFUSED"
+[2026-09-01T13:50:27.532Z] OK    requests ultimos 1d params={"dateFrom":"2026-08-31T13:50:27.532Z","dateTo":"2026-09-01T23:59:59.999Z"} duration=149ms count=1
+[2026-09-01T13:55:27.913Z] ERROR requests ultimos 1d params={"dateFrom":"2026-08-31T13:55:27.913Z","dateTo":"2026-09-01T23:59:59.999Z"} duration=218ms message="ECONNREFUSED"
 ```
 
 Campos: timestamp, `OK`/`ERROR`, nombre de la consulta, `params` usados,
