@@ -9,8 +9,6 @@
     "start:prod": "cross-env NODE_ENV=production npm run build && cross-env NODE_ENV=production node dist/main",
     "start:debug": "cross-env NODE_ENV=development nest start --debug --watch",
     "deploy": "node scripts/deploy.js",
-    "poller:start": "ts-node --transpile-only oauth-poller-client/index.ts",
-    "poller:test": "node --require ts-node/register/transpile-only --test oauth-poller-client/index.test.ts",
     "migration:create": "typeorm-ts-node-commonjs migration:create",
     "migration:generate": "typeorm-ts-node-commonjs migration:generate -d src/database/data-source.ts",
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",

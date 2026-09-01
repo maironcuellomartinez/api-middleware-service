@@ -8,15 +8,27 @@ fallas sin depender de tener la terminal abierta.
 No persiste el objeto de negocio que devuelve la API — solo registra
 metadata de cada intento (éxito/error, duración, status, mensaje).
 
+Es un proyecto standalone (su propio `package.json`), pensado para vivir
+fuera de `api-middleware-service` — se puede copiar/mover esta carpeta a
+cualquier lugar y funciona con solo `npm install` ahí adentro.
+
 ---
 
 ## Requisitos previos
 
-- Node.js >= 18 (usa las dependencias ya instaladas en la raíz del repo:
-  `axios`, `dotenv`, `ts-node`)
+- Node.js >= 18
 - Un client OAuth2 dado de alta en `api-middleware-service` (`client_id` con
   prefijo `mc_` + `client_secret`), emitido vía el módulo de administración
   (`/clients`)
+
+---
+
+## Instalación
+
+```bash
+cd oauth-poller-client
+npm install
+```
 
 ---
 
@@ -25,10 +37,10 @@ metadata de cada intento (éxito/error, duración, status, mensaje).
 Copiar la plantilla y completar credenciales:
 
 ```bash
-cp oauth-poller-client/.env.example oauth-poller-client/.env
+cp .env.example .env
 ```
 
-Variables (`oauth-poller-client/.env`):
+Variables (`.env`):
 
 | Variable               | Descripción                                              | Default            |
 |------------------------|-----------------------------------------------------------|---------------------|
@@ -38,16 +50,14 @@ Variables (`oauth-poller-client/.env`):
 | `MW_SCOPE`              | Scope(s) a solicitar, separados por espacio                | *(sin scope)*         |
 | `MW_POLL_INTERVAL_MS`   | Intervalo de polling en milisegundos                        | `300000` (5 min)     |
 
-`.env` está en `.gitignore` de esta carpeta — nunca se commitea.
+`.env` está en `.gitignore` — nunca se commitea.
 
 ---
 
 ## Uso
 
-Desde la raíz del repo:
-
 ```bash
-npm run poller:start
+npm start
 ```
 
 Corre el ciclo inmediatamente al arrancar y luego cada `MW_POLL_INTERVAL_MS`.
@@ -57,7 +67,7 @@ Para dejarlo corriendo desatendido (ej: overnight, para atrapar un error
 intermitente):
 
 ```bash
-nohup npm run poller:start > /dev/null 2>&1 &
+nohup npm start > /dev/null 2>&1 &
 ```
 
 o correrlo dentro de una sesión de `tmux`/`screen`/PM2 según lo que uses en
@@ -90,8 +100,8 @@ el entorno donde lo dejes corriendo.
 
 ## Logs
 
-Cada petición deja una línea en `oauth-poller-client/logs/poller.log`
-(se crea solo, ignorado en git) y también se imprime en consola:
+Cada petición deja una línea en `logs/poller.log` (se crea solo, ignorado
+en git) y también se imprime en consola:
 
 ```
 [2026-09-01T13:50:27.532Z] OK    requests (dateFrom/dateTo, hoy, estado CREATED,IN_PROGRESS) params={"dateFrom":"2026-09-01","dateTo":"2026-09-01"} duration=149ms count=1
@@ -105,8 +115,8 @@ Nunca incluye el contenido de las solicitudes/citas devueltas.
 Para revisar después de dejarlo corriendo toda la noche:
 
 ```bash
-tail -f oauth-poller-client/logs/poller.log      # en vivo
-grep ERROR oauth-poller-client/logs/poller.log    # solo fallas
+tail -f logs/poller.log      # en vivo
+grep ERROR logs/poller.log    # solo fallas
 ```
 
 ---
@@ -114,7 +124,7 @@ grep ERROR oauth-poller-client/logs/poller.log    # solo fallas
 ## Tests
 
 ```bash
-npm run poller:test
+npm test
 ```
 
 Cubre el clamping del piso de fechas (`buildWindow`) con distintos
@@ -129,9 +139,11 @@ atrasado, y un barrido de intervalos.
 oauth-poller-client/
 ├── index.ts         # cliente OAuth2 + loop de polling + logging
 ├── index.test.ts     # tests de la ventana de fechas
-├── .env.example       # plantilla de configuración
-├── .env                # credenciales reales (gitignored, no versionado)
-├── .gitignore           # ignora .env y logs/
+├── package.json       # dependencias y scripts (start, test)
+├── tsconfig.json        # config de TypeScript propia del proyecto
+├── .env.example           # plantilla de configuración
+├── .env                     # credenciales reales (gitignored, no versionado)
+├── .gitignore                 # ignora .env, logs/ y node_modules/
 └── logs/
-    └── poller.log         # se genera al correr el script (gitignored)
+    └── poller.log                # se genera al correr el script (gitignored)
 ```
