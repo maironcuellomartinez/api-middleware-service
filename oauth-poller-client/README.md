@@ -193,6 +193,16 @@ Campos: timestamp, `OK`/`ERROR`, nombre de la consulta, `params` usados,
 `duration`, y si aplica `count` (resultados) o `status`/`message` (error).
 Nunca incluye el contenido de las solicitudes/citas devueltas.
 
+Si la respuesta llega con `200 OK` pero en una forma que el poller no
+reconoce (no es un array ni tiene `.data` array — solo esas dos formas se
+cuentan), en vez de `count` aparece `shape=object{clave1,clave2,...}` (solo
+los **nombres** de las claves de primer nivel, nunca sus valores). Sirve
+para confirmar que sí llegó una respuesta real y ver cómo viene armada, sin
+persistir el contenido de negocio. Ejemplo:
+```
+[...] OK    requests (...) params={...} duration=143ms shape=object{success,requests} (conteo no reconocido)
+```
+
 Para revisar después de dejarlo corriendo toda la noche:
 
 ```bash

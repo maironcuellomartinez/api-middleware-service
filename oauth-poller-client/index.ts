@@ -249,12 +249,26 @@ const QUERIES: QueryJob[] = [
  */
 const LOG_FILE = path.resolve(__dirname, 'logs', 'poller.log');
 
+/**
+ * Describe la FORMA de la respuesta (tipo, o nombres de claves de primer
+ * nivel si es un objeto) sin exponer ningun valor de negocio — se usa solo
+ * cuando el conteo de resultados no pudo determinarse, para poder ver que
+ * si llego una respuesta y como viene armada, sin persistir su contenido.
+ */
+function describeShape(result: unknown): string {
+    if (Array.isArray(result)) return 'array';
+    if (result === null) return 'null';
+    if (typeof result !== 'object') return typeof result;
+    return `object{${Object.keys(result).join(',')}}`;
+}
+
 function logEntry(entry: {
     query: string;
     params: object;
     ok: boolean;
     durationMs: number;
     resultCount?: number;
+    responseShape?: string;
     status?: number;
     message?: string;
 }): void {
@@ -265,6 +279,7 @@ function logEntry(entry: {
         `params=${JSON.stringify(entry.params)}`,
         `duration=${entry.durationMs}ms`,
         entry.resultCount !== undefined ? `count=${entry.resultCount}` : null,
+        entry.responseShape ? `shape=${entry.responseShape} (conteo no reconocido)` : null,
         entry.status !== undefined ? `status=${entry.status}` : null,
         entry.message ? `message=${entry.message}` : null,
     ].filter(Boolean).join(' ');
@@ -295,6 +310,7 @@ async function runQueries(client: OAuth2Client, pollIntervalMs: number): Promise
                 ok: true,
                 durationMs: Date.now() - startedAt,
                 resultCount: count,
+                responseShape: count === undefined ? describeShape(result) : undefined,
             });
         } catch (err) {
             const status = err instanceof AxiosError ? err.response?.status : undefined;
