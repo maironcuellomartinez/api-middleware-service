@@ -74,11 +74,27 @@ Si necesitás generar un certificado autofirmado propio para probar este
 flujo (por ejemplo contra un staging local en Docker):
 
 ```bash
-MSYS_NO_PATHCONV=1 bash generate-self-signed-cert.sh [dominio]   # default: localhost
+cd oauth-poller-client   # pararte en esta carpeta, donde esta el script
+MSYS_NO_PATHCONV=1 bash generate-self-signed-cert.sh
+```
+
+`MSYS_NO_PATHCONV=1` es obligatorio en Git Bash / Windows — sin eso, Git Bash
+traduce `/CN=...` como si fuera una ruta de archivo y el comando falla con
+`subject name is expected to be in the format...`.
+
+Sin argumentos genera el certificado para `localhost`. El **dominio va como
+argumento**, después del nombre del script, en la misma línea:
+
+```bash
+MSYS_NO_PATHCONV=1 bash generate-self-signed-cert.sh staging.micorner.com
 ```
 
 Genera `certs/privkey.pem` y `certs/fullchain.pem` (`certs/` está en
-`.gitignore` — la clave privada nunca se commitea).
+`.gitignore` — la clave privada nunca se commitea). Después, en `.env`:
+
+```
+MW_CA_CERT_PATH=./certs/fullchain.pem
+```
 
 `.env` está en `.gitignore` — nunca se commitea.
 
@@ -167,13 +183,16 @@ atrasado, y un barrido de intervalos.
 
 ```
 oauth-poller-client/
-├── index.ts         # cliente OAuth2 + loop de polling + logging
-├── index.test.ts     # tests de la ventana de fechas
-├── package.json       # dependencias y scripts (start, test)
-├── tsconfig.json        # config de TypeScript propia del proyecto
-├── .env.example           # plantilla de configuración
-├── .env                     # credenciales reales (gitignored, no versionado)
-├── .gitignore                 # ignora .env, logs/ y node_modules/
+├── index.ts                    # cliente OAuth2 + loop de polling + logging
+├── index.test.ts                # tests de la ventana de fechas
+├── generate-self-signed-cert.sh   # genera un cert de prueba para MW_CA_CERT_PATH
+├── package.json                     # dependencias y scripts (start, test)
+├── tsconfig.json                      # config de TypeScript propia del proyecto
+├── .env.example                         # plantilla de configuración
+├── .env                                   # credenciales reales (gitignored, no versionado)
+├── .gitignore                               # ignora .env, logs/, node_modules/ y certs/
+├── certs/
+│   └── fullchain.pem                          # generado por el script (gitignored)
 └── logs/
-    └── poller.log                # se genera al correr el script (gitignored)
+    └── poller.log                               # se genera al correr el script (gitignored)
 ```

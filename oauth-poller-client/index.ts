@@ -199,13 +199,18 @@ interface QueryJob {
  * Lote de consultas contra /v1/requests. Ajustar params segun lo que
  * necesite consumir cada integracion (ver src/records/dto/list-records.dto.ts
  * para el listado completo de filtros soportados).
+ *
+ * OJO: ListRequestsDto/records.service.ts (backend) hoy solo reconocen
+ * dateFrom/dateTo para /v1/requests — startDate/endDate se mandan igual,
+ * pero el backend actual los ignora (no filtran) hasta que se les agregue
+ * soporte del lado del servidor.
  */
 const QUERIES: QueryJob[] = [
     {
-        name: 'requests (dateFrom/dateTo, hoy, estado CREATED,IN_PROGRESS)',
+        name: 'requests (startDate/endDate, hoy, estado CREATED,IN_PROGRESS)',
         run: (client, w) => client.get('/v1/requests', {
-            dateFrom: w.dateFrom,
-            dateTo: w.dateTo,
+            startDate: w.dateFrom,
+            endDate: w.dateTo,
             status: 'CREATED,IN_PROGRESS',
             page: 1,
             limit: 20,
