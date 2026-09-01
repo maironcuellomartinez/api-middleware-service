@@ -17,6 +17,7 @@ import * as path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 import * as fs from 'fs';
+import * as https from 'https';
 import axios, { AxiosInstance, AxiosError } from 'axios';
 
 interface Config {
@@ -25,6 +26,7 @@ interface Config {
     clientSecret: string;
     scope?: string;
     pollIntervalMs: number;
+    caCertPath?: string;
 }
 
 function loadConfig(): Config {
@@ -39,12 +41,18 @@ function loadConfig(): Config {
         );
     }
 
+    const caCertPath = process.env.MW_CA_CERT_PATH;
+    if (caCertPath && !fs.existsSync(path.resolve(caCertPath))) {
+        throw new Error(`MW_CA_CERT_PATH apunta a un archivo que no existe: ${caCertPath}`);
+    }
+
     return {
         baseUrl: baseUrl.replace(/\/+$/, ''),
         clientId,
         clientSecret,
         scope: process.env.MW_SCOPE,
         pollIntervalMs: Number(process.env.MW_POLL_INTERVAL_MS ?? 5 * 60_000),
+        caCertPath,
     };
 }
 
@@ -61,7 +69,14 @@ class OAuth2Client {
     private inFlightRefresh: Promise<TokenState> | null = null;
 
     constructor(private readonly config: Config) {
-        this.http = axios.create({ baseURL: config.baseUrl, timeout: 15_000 });
+        // MW_CA_CERT_PATH permite confiar en una CA puntual (ej: el certificado
+        // autofirmado de un staging propio) sin desactivar la verificacion TLS
+        // para el resto de las conexiones (rejectUnauthorized sigue en true).
+        const httpsAgent = config.caCertPath
+            ? new https.Agent({ ca: fs.readFileSync(path.resolve(config.caCertPath)) })
+            : undefined;
+
+        this.http = axios.create({ baseURL: config.baseUrl, timeout: 15_000, httpsAgent });
     }
 
     private basicAuthHeader(): string {

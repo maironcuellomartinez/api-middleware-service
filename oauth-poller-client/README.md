@@ -49,6 +49,27 @@ Variables (`.env`):
 | `MW_CLIENT_SECRET`      | `client_secret` del cliente OAuth2                         | *(requerida)*        |
 | `MW_SCOPE`              | Scope(s) a solicitar, separados por espacio                | *(sin scope)*         |
 | `MW_POLL_INTERVAL_MS`   | Intervalo de polling en milisegundos                        | `300000` (5 min)     |
+| `MW_CA_CERT_PATH`       | Ruta a un certificado CA a confiar puntualmente (ver abajo) | *(opcional)*          |
+
+### Certificados autofirmados (staging propio)
+
+Si `MW_BASE_URL` apunta a un staging con certificado autofirmado (ej: el
+generado por `dashboard/deploy/generate-self-signed-cert.sh`), Node lo va a
+rechazar con `UNABLE_TO_VERIFY_LEAF_SIGNATURE` — es el comportamiento
+correcto, Node valida certificados por default (a diferencia de Postman, que
+trae la verificación SSL desactivada).
+
+En vez de desactivar la verificación TLS por completo (lo que aceptaría
+*cualquier* certificado de *cualquier* servidor, exponiendo el
+`client_secret` a un posible MITM), apuntá `MW_CA_CERT_PATH` al mismo archivo
+de certificado que usa el Apache de ese staging:
+
+```
+MW_CA_CERT_PATH=../dashboard/deploy/certs/fullchain.pem
+```
+
+Esto agrega ese certificado puntual a la lista de confianza — la
+verificación sigue activa para cualquier otro servidor.
 
 `.env` está en `.gitignore` — nunca se commitea.
 
