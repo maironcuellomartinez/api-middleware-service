@@ -212,33 +212,97 @@ export function buildWindow(minutesBack: number, now = new Date()): DateWindow {
     };
 }
 
-interface QueryJob {
-    name: string;
-    run: (client: OAuth2Client, window: DateWindow) => Promise<unknown>;
+function startOfDayUTC(d: Date): Date {
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
 
 /**
- * Lote de consultas contra /v1/requests. Ajustar params segun lo que
- * necesite consumir cada integracion.
+ * Un rango por dia, desde `from` (nunca antes de MIN_VALID_DATE) hasta `to`
+ * — el ultimo rango se recorta a `to`. Ej: si `from` es el corte y `to` es
+ * "ahora", genera un rango por cada dia calendario transcurrido.
+ */
+export function buildDailyRanges(from: Date, to: Date): DateWindow[] {
+    const ranges: DateWindow[] = [];
+    let cursor = from.getTime() < MIN_VALID_DATE.getTime() ? MIN_VALID_DATE : from;
+
+    while (cursor.getTime() < to.getTime()) {
+        const next = new Date(Math.min(cursor.getTime() + 24 * 60 * 60 * 1000, to.getTime()));
+        ranges.push({ dateFrom: cursor.toISOString(), dateTo: next.toISOString() });
+        cursor = next;
+    }
+
+    return ranges;
+}
+
+/**
+ * Rangos de ejemplo dentro de UN MISMO dia (hoy, hasta `now`), para comparar
+ * contra los rangos que cruzan varios dias (buildDailyRanges).
+ */
+export function buildSameDayRanges(now: Date): { name: string; window: DateWindow }[] {
+    const startToday = startOfDayUTC(now);
+    const start = startToday.getTime() < MIN_VALID_DATE.getTime() ? MIN_VALID_DATE : startToday;
+    const noon = new Date(startToday.getTime() + 12 * 60 * 60 * 1000);
+
+    const ranges = [
+        { name: 'hoy completo (00:00 a ahora)', window: { dateFrom: start.toISOString(), dateTo: now.toISOString() } },
+    ];
+
+    if (noon.getTime() < now.getTime()) {
+        ranges.push(
+            { name: 'hoy manana (00:00 a 12:00)', window: { dateFrom: start.toISOString(), dateTo: noon.toISOString() } },
+            { name: 'hoy tarde (12:00 a ahora)', window: { dateFrom: noon.toISOString(), dateTo: now.toISOString() } },
+        );
+    }
+
+    return ranges;
+}
+
+interface QueryJob {
+    name: string;
+    window: DateWindow;
+}
+
+/**
+ * Arma el lote de consultas contra /v1/requests para una corrida: la
+ * ventana deslizante habitual (ultimos N minutos), un barrido dia por dia
+ * desde la fecha de corte hasta ahora, y un par de rangos dentro del mismo
+ * dia — para poder comparar como responde el backend a rangos de un solo
+ * dia vs. rangos que cruzan varios dias.
+ *
+ * OJO: el barrido dia por dia crece con el tiempo (mas dias desde el corte
+ * = mas requests por corrida). Si el intervalo de polling es corto y el
+ * historial ya es largo, esto puede generar muchas peticiones por ciclo.
  *
  * startDate es obligatorio en el backend real (confirmado contra staging) y
- * debe ser >= MIN_VALID_DATE — por eso siempre se manda, tomado de la
+ * debe ser >= MIN_VALID_DATE — por eso siempre se manda, tomado de cada
  * ventana (nunca queda vacio). El resto de los params son opcionales, pero
  * si se mandan se validan (confirmado: status/page/limit en su formato
  * actual pasan sin error).
  */
-const QUERIES: QueryJob[] = [
-    {
-        name: 'requests (startDate/endDate, estado CREATED,IN_PROGRESS)',
-        run: (client, w) => client.get('/v1/requests', {
-            startDate: w.dateFrom,
-            endDate: w.dateTo,
-            status: 'CREATED,IN_PROGRESS',
-            page: 1,
-            limit: 20,
-        }),
-    },
-];
+function buildQueries(now: Date, pollIntervalMs: number): QueryJob[] {
+    const minutesBack = Math.ceil(pollIntervalMs / 60_000);
+    const jobs: QueryJob[] = [
+        { name: `requests ultimos ${minutesBack}min`, window: buildWindow(minutesBack, now) },
+    ];
+
+    buildDailyRanges(MIN_VALID_DATE, now).forEach((window, i, all) => {
+        jobs.push({ name: `requests dia ${i + 1}/${all.length} (${window.dateFrom.slice(0, 10)})`, window });
+    });
+
+    buildSameDayRanges(now).forEach(({ name, window }) => jobs.push({ name, window }));
+
+    return jobs;
+}
+
+function runQuery(client: OAuth2Client, window: DateWindow): Promise<unknown> {
+    return client.get('/v1/requests', {
+        startDate: window.dateFrom,
+        endDate: window.dateTo,
+        status: 'CREATED,IN_PROGRESS',
+        page: 1,
+        limit: 20,
+    });
+}
 
 /**
  * Log de cada peticion (no del objeto de negocio que devuelve): timestamp,
@@ -291,13 +355,12 @@ function logEntry(entry: {
 }
 
 async function runQueries(client: OAuth2Client, pollIntervalMs: number): Promise<void> {
-    const minutesBack = Math.ceil(pollIntervalMs / 60_000);
-    const window = buildWindow(minutesBack);
+    const jobs = buildQueries(new Date(), pollIntervalMs);
 
-    for (const query of QUERIES) {
+    for (const job of jobs) {
         const startedAt = Date.now();
         try {
-            const result = await query.run(client, window);
+            const result = await runQuery(client, job.window);
             const count = Array.isArray(result)
                 ? result.length
                 : Array.isArray((result as any)?.data)
@@ -305,8 +368,8 @@ async function runQueries(client: OAuth2Client, pollIntervalMs: number): Promise
                     : undefined;
 
             logEntry({
-                query: query.name,
-                params: window,
+                query: job.name,
+                params: job.window,
                 ok: true,
                 durationMs: Date.now() - startedAt,
                 resultCount: count,
@@ -319,8 +382,8 @@ async function runQueries(client: OAuth2Client, pollIntervalMs: number): Promise
                 : String(err);
 
             logEntry({
-                query: query.name,
-                params: window,
+                query: job.name,
+                params: job.window,
                 ok: false,
                 durationMs: Date.now() - startedAt,
                 status,
