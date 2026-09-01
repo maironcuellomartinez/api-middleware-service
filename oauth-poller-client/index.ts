@@ -212,86 +212,30 @@ export function buildWindow(minutesBack: number, now = new Date()): DateWindow {
     };
 }
 
-function startOfDayUTC(d: Date): Date {
-    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-}
-
-/**
- * Un rango por dia, desde `from` (nunca antes de MIN_VALID_DATE) hasta `to`
- * — el ultimo rango se recorta a `to`. Ej: si `from` es el corte y `to` es
- * "ahora", genera un rango por cada dia calendario transcurrido.
- */
-export function buildDailyRanges(from: Date, to: Date): DateWindow[] {
-    const ranges: DateWindow[] = [];
-    let cursor = from.getTime() < MIN_VALID_DATE.getTime() ? MIN_VALID_DATE : from;
-
-    while (cursor.getTime() < to.getTime()) {
-        const next = new Date(Math.min(cursor.getTime() + 24 * 60 * 60 * 1000, to.getTime()));
-        ranges.push({ dateFrom: cursor.toISOString(), dateTo: next.toISOString() });
-        cursor = next;
-    }
-
-    return ranges;
-}
-
-/**
- * Rangos de ejemplo dentro de UN MISMO dia (hoy, hasta `now`), para comparar
- * contra los rangos que cruzan varios dias (buildDailyRanges).
- */
-export function buildSameDayRanges(now: Date): { name: string; window: DateWindow }[] {
-    const startToday = startOfDayUTC(now);
-    const start = startToday.getTime() < MIN_VALID_DATE.getTime() ? MIN_VALID_DATE : startToday;
-    const noon = new Date(startToday.getTime() + 12 * 60 * 60 * 1000);
-
-    const ranges = [
-        { name: 'hoy completo (00:00 a ahora)', window: { dateFrom: start.toISOString(), dateTo: now.toISOString() } },
-    ];
-
-    if (noon.getTime() < now.getTime()) {
-        ranges.push(
-            { name: 'hoy manana (00:00 a 12:00)', window: { dateFrom: start.toISOString(), dateTo: noon.toISOString() } },
-            { name: 'hoy tarde (12:00 a ahora)', window: { dateFrom: noon.toISOString(), dateTo: now.toISOString() } },
-        );
-    }
-
-    return ranges;
-}
-
 interface QueryJob {
     name: string;
     window: DateWindow;
 }
 
 /**
- * Arma el lote de consultas contra /v1/requests para una corrida: la
- * ventana deslizante habitual (ultimos N minutos), un barrido dia por dia
- * desde la fecha de corte hasta ahora, y un par de rangos dentro del mismo
- * dia — para poder comparar como responde el backend a rangos de un solo
- * dia vs. rangos que cruzan varios dias.
- *
- * OJO: el barrido dia por dia crece con el tiempo (mas dias desde el corte
- * = mas requests por corrida). Si el intervalo de polling es corto y el
- * historial ya es largo, esto puede generar muchas peticiones por ciclo.
+ * Arma la (unica) consulta contra /v1/requests de cada corrida: una sola
+ * ventana combinada de "ultimos N minutos" (N = intervalo de polling). Como
+ * dateFrom/dateTo son timestamps completos (no recortados a un dia), la
+ * ventana puede caer dentro del mismo dia o cruzar la medianoche hacia el
+ * dia anterior/siguiente segun a que hora corra — sin necesidad de mandar
+ * mas de una peticion por ciclo.
  *
  * startDate es obligatorio en el backend real (confirmado contra staging) y
- * debe ser >= MIN_VALID_DATE — por eso siempre se manda, tomado de cada
+ * debe ser >= MIN_VALID_DATE — por eso siempre se manda, tomado de la
  * ventana (nunca queda vacio). El resto de los params son opcionales, pero
  * si se mandan se validan (confirmado: status/page/limit en su formato
  * actual pasan sin error).
  */
 function buildQueries(now: Date, pollIntervalMs: number): QueryJob[] {
     const minutesBack = Math.ceil(pollIntervalMs / 60_000);
-    const jobs: QueryJob[] = [
+    return [
         { name: `requests ultimos ${minutesBack}min`, window: buildWindow(minutesBack, now) },
     ];
-
-    buildDailyRanges(MIN_VALID_DATE, now).forEach((window, i, all) => {
-        jobs.push({ name: `requests dia ${i + 1}/${all.length} (${window.dateFrom.slice(0, 10)})`, window });
-    });
-
-    buildSameDayRanges(now).forEach(({ name, window }) => jobs.push({ name, window }));
-
-    return jobs;
 }
 
 function runQuery(client: OAuth2Client, window: DateWindow): Promise<unknown> {
