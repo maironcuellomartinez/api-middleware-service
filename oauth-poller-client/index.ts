@@ -203,9 +203,12 @@ export function buildWindow(minutesBack: number, now = new Date()): DateWindow {
     const rawStart = new Date(end.getTime() - minutesBack * 60_000);
     const start = rawStart.getTime() < MIN_VALID_DATE.getTime() ? MIN_VALID_DATE : rawStart;
 
+    // Mismo formato ISO 8601 completo (con hora/zona) que MIN_VALID_DATE,
+    // en vez de solo la fecha (YYYY-MM-DD) — para que dateFrom/dateTo sean
+    // directamente comparables con el tope.
     return {
-        dateFrom: start.toISOString().slice(0, 10),
-        dateTo: end.toISOString().slice(0, 10),
+        dateFrom: start.toISOString(),
+        dateTo: end.toISOString(),
     };
 }
 
@@ -226,7 +229,7 @@ interface QueryJob {
  */
 const QUERIES: QueryJob[] = [
     {
-        name: 'requests (startDate/endDate, hoy, estado CREATED,IN_PROGRESS)',
+        name: 'requests (startDate/endDate, estado CREATED,IN_PROGRESS)',
         run: (client, w) => client.get('/v1/requests', {
             startDate: w.dateFrom,
             endDate: w.dateTo,
