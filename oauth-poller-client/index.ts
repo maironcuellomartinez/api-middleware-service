@@ -219,13 +219,13 @@ interface QueryJob {
 
 /**
  * Lote de consultas contra /v1/requests. Ajustar params segun lo que
- * necesite consumir cada integracion (ver src/records/dto/list-records.dto.ts
- * para el listado completo de filtros soportados).
+ * necesite consumir cada integracion.
  *
- * OJO: ListRequestsDto/records.service.ts (backend) hoy solo reconocen
- * dateFrom/dateTo para /v1/requests — startDate/endDate se mandan igual,
- * pero el backend actual los ignora (no filtran) hasta que se les agregue
- * soporte del lado del servidor.
+ * startDate es obligatorio en el backend real (confirmado contra staging) y
+ * debe ser >= MIN_VALID_DATE — por eso siempre se manda, tomado de la
+ * ventana (nunca queda vacio). El resto de los params son opcionales, pero
+ * si se mandan se validan (confirmado: status/page/limit en su formato
+ * actual pasan sin error).
  */
 const QUERIES: QueryJob[] = [
     {
