@@ -163,17 +163,19 @@ el entorno donde lo dejes corriendo.
    con `POST /oauth/refresh`; si el refresh falla, reautentica desde cero.
    Ante un 401 inesperado en una consulta, fuerza reautenticación y
    reintenta una vez.
-3. **Ventana de fechas** — cada ciclo calcula un rango como "los últimos N
-   minutos" (N = intervalo de polling), en formato ISO 8601 completo
-   (`2026-09-01T09:55:00.000Z`), de modo que cada corrida cubre exactamente
-   el período transcurrido desde la anterior.
-   - **Piso de fechas**: el inicio del rango nunca es anterior a
+3. **Ventana de fechas** — cada ciclo calcula, en formato ISO 8601 completo:
+   - `dateFrom` = ahora menos N minutos (N = intervalo de polling) — igual
+     que siempre, cubre lo transcurrido desde el ciclo anterior.
+   - `dateTo` = **fin del día actual** (`23:59:59.999Z`), no "ahora" — así
+     la consulta también trae las citas programadas para el resto del día,
+     no solo lo ya sucedido.
+   - **Piso de fechas**: `dateFrom` nunca es anterior a
      `2026-07-16T08:00:00.000Z` (`MIN_VALID_DATE` en `index.ts`) porque el
      sistema origen no tiene datos válidos antes de esa fecha. Está cubierto
      por tests (`index.test.ts`).
 4. **Consulta** — `GET /v1/requests` con `startDate`, `endDate`,
    `status=CREATED,IN_PROGRESS`, `page=1`, `limit=20`. Para agregar o
-   modificar consultas, editar el array `QUERIES` en `index.ts`.
+   modificar consultas, editar `buildQueries`/`runQuery` en `index.ts`.
 5. **Resiliencia** — si una consulta falla o el ciclo entero lanza un error
    no previsto, se loguea y el proceso sigue corriendo (no se cae).
 
@@ -185,8 +187,8 @@ Cada petición deja una línea en `logs/poller.log` (se crea solo, ignorado
 en git) y también se imprime en consola:
 
 ```
-[2026-09-01T13:50:27.532Z] OK    requests (startDate/endDate, estado CREATED,IN_PROGRESS) params={"dateFrom":"2026-09-01T13:45:27.532Z","dateTo":"2026-09-01T13:50:27.532Z"} duration=149ms count=1
-[2026-09-01T13:52:14.913Z] ERROR requests (startDate/endDate, estado CREATED,IN_PROGRESS) params={"dateFrom":"2026-09-01T13:47:14.913Z","dateTo":"2026-09-01T13:52:14.913Z"} duration=218ms message="ECONNREFUSED"
+[2026-09-01T13:50:27.532Z] OK    requests ultimos 5min params={"dateFrom":"2026-09-01T13:45:27.532Z","dateTo":"2026-09-01T23:59:59.999Z"} duration=149ms count=1
+[2026-09-01T13:52:14.913Z] ERROR requests ultimos 5min params={"dateFrom":"2026-09-01T13:47:14.913Z","dateTo":"2026-09-01T23:59:59.999Z"} duration=218ms message="ECONNREFUSED"
 ```
 
 Campos: timestamp, `OK`/`ERROR`, nombre de la consulta, `params` usados,

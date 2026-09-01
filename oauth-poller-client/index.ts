@@ -198,9 +198,21 @@ interface DateWindow {
  */
 export const MIN_VALID_DATE = new Date('2026-07-16T08:00:00.000Z');
 
+function endOfDayUTC(d: Date): Date {
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
+}
+
+/**
+ * dateFrom = "ahora" (o el piso, si el reloj esta atrasado) menos
+ * minutesBack — igual que siempre. dateTo = fin del dia actual
+ * (23:59:59.999 UTC), no "ahora": asi cubre tambien las citas del resto
+ * del dia, no solo lo transcurrido desde el ciclo anterior.
+ */
 export function buildWindow(minutesBack: number, now = new Date()): DateWindow {
-    const end = now.getTime() < MIN_VALID_DATE.getTime() ? MIN_VALID_DATE : now;
-    const rawStart = new Date(end.getTime() - minutesBack * 60_000);
+    const clampedNow = now.getTime() < MIN_VALID_DATE.getTime() ? MIN_VALID_DATE : now;
+    const end = endOfDayUTC(clampedNow);
+
+    const rawStart = new Date(clampedNow.getTime() - minutesBack * 60_000);
     const start = rawStart.getTime() < MIN_VALID_DATE.getTime() ? MIN_VALID_DATE : rawStart;
 
     // Mismo formato ISO 8601 completo (con hora/zona) que MIN_VALID_DATE,
