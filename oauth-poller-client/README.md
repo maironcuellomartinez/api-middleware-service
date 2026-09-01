@@ -49,7 +49,6 @@ Variables (`.env`):
 | `MW_CLIENT_SECRET`      | `client_secret` del cliente OAuth2                         | *(requerida)*        |
 | `MW_SCOPE`              | Scope(s) a solicitar, separados por espacio                | *(sin scope)*         |
 | `MW_POLL_INTERVAL_MS`   | Cada cuanto se corre el ciclo, en milisegundos               | `300000` (5 min)     |
-| `MW_LOOKBACK_DAYS`      | Cuantos días hacia atrás pedir en `dateFrom` (independiente del intervalo) | `1`     |
 | `MW_CA_CERT_PATH`       | Ruta a un certificado CA a confiar puntualmente (ver abajo) | *(opcional)*          |
 | `MW_INSECURE_SKIP_TLS_VERIFY` | Desactiva la verificación TLS por completo (ver abajo) — **peligroso** | `false`         |
 
@@ -164,19 +163,21 @@ el entorno donde lo dejes corriendo.
    con `POST /oauth/refresh`; si el refresh falla, reautentica desde cero.
    Ante un 401 inesperado en una consulta, fuerza reautenticación y
    reintenta una vez.
-3. **Ventana de fechas** — cada ciclo calcula, en formato ISO 8601 completo:
-   - `dateFrom` = ahora menos `MW_LOOKBACK_DAYS` **días** (no minutos —
-     independiente de `MW_POLL_INTERVAL_MS`, que solo controla cada cuánto
-     se corre el ciclo). Con una ventana de solo minutos, casi todas las
-     corridas dan `count=0` porque rara vez hay una cita creada/actualizada
-     en un margen tan chico.
-   - `dateTo` = **fin del día actual** (`23:59:59.999Z`), no "ahora" — así
-     la consulta también trae las citas programadas para el resto del día,
-     no solo lo ya sucedido.
-   - **Piso de fechas**: `dateFrom` nunca es anterior a
-     `2026-07-16T08:00:00.000Z` (`MIN_VALID_DATE` en `index.ts`) porque el
-     sistema origen no tiene datos válidos antes de esa fecha. Está cubierto
-     por tests (`index.test.ts`).
+3. **Un día calendario distinto por ciclo** — cada corrida consulta un día
+   completo (`dateFrom` = `00:00:00.000`, `dateTo` = `23:59:59.999`, ambos
+   ISO 8601 completo), **no** una diferencia de minutos dentro del mismo
+   día. El día a consultar lo elige `pickDay(now, tickIndex)`:
+   - `tickIndex` es el número de ciclo (0, 1, 2, ...), incrementado en cada
+     corrida.
+   - Arranca en el día de la fecha de corte y avanza **un día por ciclo**.
+   - Al llegar al día de "hoy", vuelve a empezar desde la fecha de corte
+     (da la vuelta) — así, con el tiempo, se recorre todo el historial
+     disponible sin repetir el mismo día dos veces seguidas.
+   - **Piso de fechas**: el día de la fecha de corte usa exactamente
+     `2026-07-16T08:00:00.000Z` como `dateFrom` (no `00:00:00.000`), porque
+     el sistema origen no tiene datos válidos antes de esa hora
+     (`MIN_VALID_DATE` en `index.ts`). Está cubierto por tests
+     (`index.test.ts`).
 4. **Consulta** — `GET /v1/requests` con `startDate`, `endDate`,
    `status=CREATED,IN_PROGRESS`, `page=1`, `limit=20`. Para agregar o
    modificar consultas, editar `buildQueries`/`runQuery` en `index.ts`.
@@ -191,8 +192,8 @@ Cada petición deja una línea en `logs/poller.log` (se crea solo, ignorado
 en git) y también se imprime en consola:
 
 ```
-[2026-09-01T13:50:27.532Z] OK    requests ultimos 1d params={"dateFrom":"2026-08-31T13:50:27.532Z","dateTo":"2026-09-01T23:59:59.999Z"} duration=149ms count=1
-[2026-09-01T13:55:27.913Z] ERROR requests ultimos 1d params={"dateFrom":"2026-08-31T13:55:27.913Z","dateTo":"2026-09-01T23:59:59.999Z"} duration=218ms message="ECONNREFUSED"
+[2026-09-01T13:50:27.532Z] OK    requests dia 2026-07-16 params={"dateFrom":"2026-07-16T08:00:00.000Z","dateTo":"2026-07-16T23:59:59.999Z"} duration=149ms count=1
+[2026-09-01T13:55:27.913Z] ERROR requests dia 2026-07-17 params={"dateFrom":"2026-07-17T00:00:00.000Z","dateTo":"2026-07-17T23:59:59.999Z"} duration=218ms message="ECONNREFUSED"
 ```
 
 Campos: timestamp, `OK`/`ERROR`, nombre de la consulta, `params` usados,
