@@ -53,23 +53,32 @@ Variables (`.env`):
 
 ### Certificados autofirmados (staging propio)
 
-Si `MW_BASE_URL` apunta a un staging con certificado autofirmado (ej: el
-generado por `dashboard/deploy/generate-self-signed-cert.sh`), Node lo va a
-rechazar con `UNABLE_TO_VERIFY_LEAF_SIGNATURE` — es el comportamiento
+Si `MW_BASE_URL` apunta a un staging con certificado autofirmado, Node lo va
+a rechazar con `UNABLE_TO_VERIFY_LEAF_SIGNATURE` — es el comportamiento
 correcto, Node valida certificados por default (a diferencia de Postman, que
 trae la verificación SSL desactivada).
 
 En vez de desactivar la verificación TLS por completo (lo que aceptaría
 *cualquier* certificado de *cualquier* servidor, exponiendo el
-`client_secret` a un posible MITM), apuntá `MW_CA_CERT_PATH` al mismo archivo
-de certificado que usa el Apache de ese staging:
+`client_secret` a un posible MITM), apuntá `MW_CA_CERT_PATH` al certificado
+real de ese staging (ej: el que usa su Apache en `SSLCertificateFile`):
 
 ```
-MW_CA_CERT_PATH=../dashboard/deploy/certs/fullchain.pem
+MW_CA_CERT_PATH=/ruta/al/staging/certs/fullchain.pem
 ```
 
 Esto agrega ese certificado puntual a la lista de confianza — la
 verificación sigue activa para cualquier otro servidor.
+
+Si necesitás generar un certificado autofirmado propio para probar este
+flujo (por ejemplo contra un staging local en Docker):
+
+```bash
+MSYS_NO_PATHCONV=1 bash generate-self-signed-cert.sh [dominio]   # default: localhost
+```
+
+Genera `certs/privkey.pem` y `certs/fullchain.pem` (`certs/` está en
+`.gitignore` — la clave privada nunca se commitea).
 
 `.env` está en `.gitignore` — nunca se commitea.
 
