@@ -50,6 +50,7 @@ Variables (`.env`):
 | `MW_SCOPE`              | Scope(s) a solicitar, separados por espacio                | *(sin scope)*         |
 | `MW_POLL_INTERVAL_MS`   | Intervalo de polling en milisegundos                        | `300000` (5 min)     |
 | `MW_CA_CERT_PATH`       | Ruta a un certificado CA a confiar puntualmente (ver abajo) | *(opcional)*          |
+| `MW_INSECURE_SKIP_TLS_VERIFY` | Desactiva la verificación TLS por completo (ver abajo) — **peligroso** | `false`         |
 
 ### Certificados autofirmados (staging propio)
 
@@ -70,8 +71,24 @@ MW_CA_CERT_PATH=/ruta/al/staging/certs/fullchain.pem
 Esto agrega ese certificado puntual a la lista de confianza — la
 verificación sigue activa para cualquier otro servidor.
 
-Si necesitás generar un certificado autofirmado propio para probar este
-flujo (por ejemplo contra un staging local en Docker):
+> **Importante**: `MW_CA_CERT_PATH` tiene que apuntar al certificado **real**
+> que el servidor destino ya está sirviendo — no sirve generar uno nuevo con
+> `generate-self-signed-cert.sh` "con el mismo dominio" y esperar que
+> funcione. La confianza TLS se basa en la firma criptográfica del archivo,
+> no en que el nombre (CN) coincida; un certificado inventado por vos es una
+> clave distinta a la que usa el servidor real, así que sigue sin validar.
+>
+> Si no tenés acceso directo al archivo del servidor, extraé el certificado
+> real de la conexión:
+> ```bash
+> echo | openssl s_client -connect TU_HOST:443 -servername TU_HOST 2>/dev/null | openssl x509 -outform PEM > server-real.pem
+> ```
+> y usá `MW_CA_CERT_PATH=./server-real.pem`.
+
+`generate-self-signed-cert.sh` sirve para el caso contrario: cuando **vos
+mismo** levantás un servidor de prueba (ej. un staging local en Docker) y
+necesitás generarle un certificado desde cero — ahí sí, el mismo archivo que
+generás es el que termina sirviendo el servidor, así que coincide.
 
 ```bash
 cd oauth-poller-client   # pararte en esta carpeta, donde esta el script
@@ -95,6 +112,23 @@ Genera `certs/privkey.pem` y `certs/fullchain.pem` (`certs/` está en
 ```
 MW_CA_CERT_PATH=./certs/fullchain.pem
 ```
+
+### Desactivar la verificación TLS por completo (`MW_INSECURE_SKIP_TLS_VERIFY`)
+
+**Peligroso — evitar salvo pruebas puntuales y aisladas.** Es el equivalente
+a apagar "SSL certificate verification" en Postman: el poller deja de
+verificar el certificado del servidor por completo y acepta cualquiera,
+incluido el de un atacante interceptando la conexión (el `client_secret`
+viaja en cada petición de token). `MW_CA_CERT_PATH` (arriba) resuelve el
+mismo problema sin este riesgo — usar esto solo si no hay forma de conseguir
+el certificado real del servidor.
+
+```
+MW_INSECURE_SKIP_TLS_VERIFY=true
+```
+
+Al arrancar, el poller imprime una advertencia bien visible en consola
+mientras esta variable esté activa, para que no pase desapercibido.
 
 `.env` está en `.gitignore` — nunca se commitea.
 

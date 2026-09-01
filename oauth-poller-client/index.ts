@@ -27,6 +27,7 @@ interface Config {
     scope?: string;
     pollIntervalMs: number;
     caCertPath?: string;
+    insecureSkipTlsVerify: boolean;
 }
 
 function loadConfig(): Config {
@@ -46,6 +47,19 @@ function loadConfig(): Config {
         throw new Error(`MW_CA_CERT_PATH apunta a un archivo que no existe: ${caCertPath}`);
     }
 
+    const insecureSkipTlsVerify = process.env.MW_INSECURE_SKIP_TLS_VERIFY === 'true';
+    if (insecureSkipTlsVerify) {
+        console.warn(
+            '\n*** ADVERTENCIA ***\n'
+            + 'MW_INSECURE_SKIP_TLS_VERIFY=true — la verificacion de certificado TLS\n'
+            + 'esta DESACTIVADA (igual que "SSL certificate verification: OFF" en\n'
+            + 'Postman). El poller va a aceptar CUALQUIER certificado de CUALQUIER\n'
+            + `servidor en ${baseUrl}, incluido uno de un atacante interceptando la\n`
+            + 'conexion — y el client_secret viaja en cada peticion de token.\n'
+            + 'Usar solo para pruebas puntuales y aisladas, nunca dejar prendido.\n',
+        );
+    }
+
     return {
         baseUrl: baseUrl.replace(/\/+$/, ''),
         clientId,
@@ -53,6 +67,7 @@ function loadConfig(): Config {
         scope: process.env.MW_SCOPE,
         pollIntervalMs: Number(process.env.MW_POLL_INTERVAL_MS ?? 5 * 60_000),
         caCertPath,
+        insecureSkipTlsVerify,
     };
 }
 
@@ -69,12 +84,16 @@ class OAuth2Client {
     private inFlightRefresh: Promise<TokenState> | null = null;
 
     constructor(private readonly config: Config) {
-        // MW_CA_CERT_PATH permite confiar en una CA puntual (ej: el certificado
-        // autofirmado de un staging propio) sin desactivar la verificacion TLS
-        // para el resto de las conexiones (rejectUnauthorized sigue en true).
-        const httpsAgent = config.caCertPath
-            ? new https.Agent({ ca: fs.readFileSync(path.resolve(config.caCertPath)) })
-            : undefined;
+        // MW_INSECURE_SKIP_TLS_VERIFY desactiva la verificacion por completo
+        // (equivalente a "SSL certificate verification: OFF" en Postman) —
+        // tiene prioridad porque si esta prendido no tiene sentido ademas
+        // restringir a una CA puntual. MW_CA_CERT_PATH (mas seguro) permite
+        // confiar en una CA puntual sin bajar la guardia para el resto.
+        const httpsAgent = config.insecureSkipTlsVerify
+            ? new https.Agent({ rejectUnauthorized: false })
+            : config.caCertPath
+                ? new https.Agent({ ca: fs.readFileSync(path.resolve(config.caCertPath)) })
+                : undefined;
 
         this.http = axios.create({ baseURL: config.baseUrl, timeout: 15_000, httpsAgent });
     }
